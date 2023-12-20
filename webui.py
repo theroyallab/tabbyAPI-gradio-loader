@@ -51,13 +51,16 @@ def connect(data):
         loras.append(lora.get("id"))
 
     gr.Info("TabbyAPI connected.")
-    return gr.Textbox(value=", ".join(models), visible=True), gr.Textbox(value=", ".join(draft_models), visible=True), gr.Textbox(value=", ".join(loras), visible=True), get_current_model(), get_current_loras()
+    return gr.Textbox(value=", ".join(models), visible=True), gr.Textbox(value=", ".join(draft_models), visible=True), gr.Textbox(value=", ".join(loras), visible=True), get_model_list(), get_draft_model_list(), get_lora_list(), get_current_model(), get_current_loras()
 
 def get_model_list():
-    return gr.Dropdown(choices=models, value=None), gr.Dropdown(choices=draft_models, value=None), get_current_model(), get_current_loras()
+    return gr.Dropdown(choices=models, value=None)
+
+def get_draft_model_list():
+    return gr.Dropdown(choices=draft_models, value=None)
 
 def get_lora_list():
-    return gr.Dropdown(choices=loras, value=[]), get_current_model(), get_current_loras()
+    return gr.Dropdown(choices=loras, value=[])
 
 def get_current_model():
     model_card = requests.get(url=conn_url + "/v1/model", headers={"X-api-key" : conn_key}).json()
@@ -198,7 +201,6 @@ with gr.Blocks(title="TabbyAPI Gradio Loader") as webui:
         with gr.Row():
             load_model_btn = gr.Button(value="Load Model", variant="primary")
             unload_model_btn = gr.Button(value="Unload Model", variant="stop")
-            refresh_models_btn = gr.Button("Refresh Models")
 
         with gr.Group():
             models_drop = gr.Dropdown(label="Select Model:", interactive=True)
@@ -231,22 +233,19 @@ with gr.Blocks(title="TabbyAPI Gradio Loader") as webui:
         with gr.Row():
             load_loras_btn = gr.Button(value="Load Loras", variant="primary")
             unload_loras_btn = gr.Button(value="Unload All Loras", variant="stop")
-            refresh_loras_btn = gr.Button("Refresh Loras")
             
         loras_drop = gr.Dropdown(label="Select Loras:", choices=loras, multiselect=True, interactive=True)
         loras_table = gr.List(label="Lora Scaling:", visible=False, datatype="number", type="array", interactive=True)
 
     # Define event listeners
-    connect_btn.click(fn=connect, inputs={api_url,admin_key}, outputs=[model_list, draft_model_list, lora_list, current_model, current_loras])
+    connect_btn.click(fn=connect, inputs={api_url,admin_key}, outputs=[model_list, draft_model_list, lora_list, models_drop, draft_models_drop, loras_drop, current_model, current_loras])
 
     gpu_split_auto.change(fn=toggle_gpu_split, inputs=gpu_split_auto, outputs=gpu_split)
     moe_model.change(fn=toggle_moe, inputs=moe_model, outputs=num_experts_per_token)
-    refresh_models_btn.click(fn=get_model_list, outputs=[models_drop, draft_models_drop, current_model, current_loras])
     unload_model_btn.click(fn=unload_model, outputs=[current_model, current_loras])
     load_model_btn.click(fn=load_model, inputs=[models_drop, max_seq_len, override_base_seq_len, gpu_split_auto, gpu_split, model_rope_scale, model_rope_alpha, no_flash_attention, cache_mode, prompt_template, num_experts_per_token, draft_models_drop, draft_rope_scale, draft_rope_alpha], outputs=[current_model, current_loras])
 
     loras_drop.change(update_loras_table, inputs=loras_drop, outputs=loras_table)
-    refresh_loras_btn.click(fn=get_lora_list, outputs=[loras_drop, current_model, current_loras])
     unload_loras_btn.click(fn=unload_loras, outputs=[current_model, current_loras])
     load_loras_btn.click(fn=load_loras, inputs=[loras_drop, loras_table], outputs=[current_model, current_loras])
 
