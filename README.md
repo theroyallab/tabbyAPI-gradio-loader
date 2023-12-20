@@ -28,9 +28,12 @@ To get started, make sure you have the following installed on your system:
 3. Input your tabbyAPI endpoint URL and admin key and press connect!
 
 ## Command-line Arguments
-| Argument           | Description                                               |
-| :----------------  | :-----------------------------------------------------    |
-| `-h` or`--help`    |  Show this help message and exit                          |
-| `-p` or `--port`   |  Specify port to host the WebUI on (default 7860)         |
-| `-l` or `--listen` |  Share WebUI link via LAN                                 |
-| `-s` or `--share`  |  Share WebUI link remotely via Gradio's built in tunnel   |
+| Argument                 | Description                                                  |
+| :----------------------- | :----------------------------------------------------------- |
+| `-h` or`--help`          |  Show this help message and exit                             |
+| `-p` or `--port`         |  Specify port to host the WebUI on (default 7860)            |
+| `-l` or `--listen`       |  Share WebUI link via LAN                                    |
+| `-s` or `--share`        |  Share WebUI link remotely via Gradio's built in tunnel      |
+| `-a` or `--autolaunch`   |  Launch browser after starting WebUI                         |
+| `-e` or `--endpoint_url` |  TabbyAPI endpoint URL (default http://localhost:5000)       |
+| `-k` or `--admin_key`    |  TabbyAPI admin key, connect automatically on launch         |

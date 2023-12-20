@@ -7,7 +7,7 @@ import pathlib
 conn_url = None
 conn_key = None
 
-host_url = None
+host_url = "127.0.0.1"
 
 models = []
 draft_models = []
@@ -17,6 +17,9 @@ parser = argparse.ArgumentParser(description="TabbyAPI Gradio Loader")
 parser.add_argument("-p", "--port", type=int, default=7860, help="Specify port to host the WebUI on (default 7860)")
 parser.add_argument("-l", "--listen", action="store_true", help="Share WebUI link via LAN")
 parser.add_argument("-s", "--share", action="store_true", help="Share WebUI link remotely via Gradio's built in tunnel")
+parser.add_argument("-a", "--autolaunch", action="store_true", help="Launch browser after starting WebUI")
+parser.add_argument("-e", "--endpoint_url", type=str, default="http://localhost:5000", help="TabbyAPI endpoint URL (default http://localhost:5000)")
+parser.add_argument("-k", "--admin_key", type=str, default=None, help="TabbyAPI admin key, connect automatically on launch")
 args = parser.parse_args()
 if args.listen: host_url = "0.0.0.0"
 
@@ -68,7 +71,7 @@ def get_preset_list(raw = False):
     if raw: return preset_list
     return gr.Dropdown(choices=preset_list, value=None)
 
-def connect(data):
+def connect(api_url, admin_key, silent=False):
     global conn_url
     global conn_key
     global models
@@ -76,17 +79,17 @@ def connect(data):
     global loras
 
     try:
-        m = requests.get(url=data.get(api_url) + "/v1/model/list", headers={"X-api-key" : data.get(admin_key)})
+        m = requests.get(url=api_url + "/v1/model/list", headers={"X-api-key" : admin_key})
         m.raise_for_status()
-        d = requests.get(url=data.get(api_url) + "/v1/model/draft/list", headers={"X-api-key" : data.get(admin_key)})
+        d = requests.get(url=api_url + "/v1/model/draft/list", headers={"X-api-key" : admin_key})
         d.raise_for_status()
-        l = requests.get(url=data.get(api_url) + "/v1/lora/list", headers={"X-api-key" : data.get(admin_key)})
+        l = requests.get(url=api_url + "/v1/lora/list", headers={"X-api-key" : admin_key})
         l.raise_for_status()
     except:
         raise gr.Error("An error was encountered, please check your inputs and traceback.")
     
-    conn_url = data.get(api_url)
-    conn_key = data.get(admin_key)
+    conn_url = api_url
+    conn_key = admin_key
 
     models = []
     for model in m.json().get("data"):
@@ -100,8 +103,9 @@ def connect(data):
     for lora in l.json().get("data"):
         loras.append(lora.get("id"))
 
-    gr.Info("TabbyAPI connected.")
-    return gr.Textbox(value=", ".join(models), visible=True), gr.Textbox(value=", ".join(draft_models), visible=True), gr.Textbox(value=", ".join(loras), visible=True), get_model_list(), get_draft_model_list(), get_lora_list(), get_current_model(), get_current_loras()
+    if not silent:
+        gr.Info("TabbyAPI connected.")
+        return gr.Textbox(value=", ".join(models), visible=True), gr.Textbox(value=", ".join(draft_models), visible=True), gr.Textbox(value=", ".join(loras), visible=True), get_model_list(), get_draft_model_list(), get_lora_list(), get_current_model(), get_current_loras()
 
 def get_model_list():
     return gr.Dropdown(choices=models, value=None)
@@ -224,22 +228,33 @@ def return_none():
     # Stupid workaround for "Number" components being unable to default to None
     return None
 
+# Auto-attempt connection if admin key is provided
+init_model_text = None
+init_lora_text = None
+if args.admin_key:
+    try:
+        connect(api_url=args.endpoint_url, admin_key=args.admin_key, silent=True)
+        init_model_text = get_current_model().value
+        init_lora_text = get_current_loras().value
+    except:
+        print("Automatic connection failed, continuing to WebUI.")
+
+# Setup UI elements
 with gr.Blocks(title="TabbyAPI Gradio Loader") as webui:
-    # Setup UI elements
     gr.Markdown(
     """
     # TabbyAPI Gradio Loader
     """)
-    current_model = gr.Textbox(label="Current Model:")
-    current_loras = gr.Textbox(label="Current Loras:")
+    current_model = gr.Textbox(value=init_model_text, label="Current Model:")
+    current_loras = gr.Textbox(value=init_lora_text, label="Current Loras:")
 
     with gr.Tab("Connect to API"):
         connect_btn = gr.Button(value="Connect", variant="primary")
-        api_url = gr.Textbox(value="http://127.0.0.1:5000", label="TabbyAPI Endpoint URL:", interactive=True)
-        admin_key = gr.Textbox(label="Admin Key:", type="password", interactive=True)
-        model_list = gr.Textbox(label="Available Models:", visible=False)
-        draft_model_list = gr.Textbox(label="Available Draft Models:", visible=False)
-        lora_list = gr.Textbox(label="Available Loras:", visible=False)
+        api_url = gr.Textbox(value=args.endpoint_url, label="TabbyAPI Endpoint URL:", interactive=True)
+        admin_key = gr.Textbox(value=args.admin_key, label="Admin Key:", type="password", interactive=True)
+        model_list = gr.Textbox(value=", ".join(models), label="Available Models:", visible=bool(conn_key))
+        draft_model_list = gr.Textbox(value=", ".join(draft_models), label="Available Draft Models:", visible=bool(conn_key))
+        lora_list = gr.Textbox(value=", ".join(loras), label="Available Loras:", visible=bool(conn_key))
 
     with gr.Tab("Load Model"):
         with gr.Row():
@@ -258,7 +273,7 @@ with gr.Blocks(title="TabbyAPI Gradio Loader") as webui:
                 refresh_preset_btn = gr.Button(value="Refresh Presets")
             
         with gr.Group():
-            models_drop = gr.Dropdown(label="Select Model:", interactive=True)
+            models_drop = gr.Dropdown(choices=models, label="Select Model:", interactive=True)
             with gr.Row():
                 max_seq_len = gr.Number(value=return_none, label="Max Sequence Length:", precision=0, minimum=1, interactive=True)
                 override_base_seq_len = gr.Number(value=return_none, label="Override Base Sequence Length (used to override value in config.json for auto-ROPE scaling):", precision=0, minimum=1, interactive=True)
@@ -268,7 +283,7 @@ with gr.Blocks(title="TabbyAPI Gradio Loader") as webui:
                 model_rope_alpha = gr.Number(value=return_none, label="Rope Alpha:", minimum=1, interactive=True)
 
         with gr.Accordion(open=False, label="Speculative Decoding"):
-            draft_models_drop = gr.Dropdown(label="Select Draft Model:", interactive=True)
+            draft_models_drop = gr.Dropdown(choices=draft_models, label="Select Draft Model:", interactive=True)
             with gr.Row():
                 draft_rope_scale = gr.Number(value=return_none, label="Draft Rope Scale:", minimum=1, interactive=True)
                 draft_rope_alpha = gr.Number(value=return_none, label="Draft Rope Alpha:", minimum=1, interactive=True)
@@ -293,7 +308,7 @@ with gr.Blocks(title="TabbyAPI Gradio Loader") as webui:
 
     # Define event listeners
     # Connection tab
-    connect_btn.click(fn=connect, inputs={api_url,admin_key}, outputs=[model_list, draft_model_list, lora_list, models_drop, draft_models_drop, loras_drop, current_model, current_loras])
+    connect_btn.click(fn=connect, inputs=[api_url,admin_key], outputs=[model_list, draft_model_list, lora_list, models_drop, draft_models_drop, loras_drop, current_model, current_loras])
 
     # Model tab
     load_preset_btn.click(fn=read_preset, inputs=load_preset, outputs=[models_drop, max_seq_len, override_base_seq_len, gpu_split_auto, gpu_split, model_rope_scale, model_rope_alpha, no_flash_attention, cache_mode, prompt_template, num_experts_per_token, draft_models_drop, draft_rope_scale, draft_rope_alpha])
@@ -310,4 +325,4 @@ with gr.Blocks(title="TabbyAPI Gradio Loader") as webui:
     unload_loras_btn.click(fn=unload_loras, outputs=[current_model, current_loras])
     load_loras_btn.click(fn=load_loras, inputs=[loras_drop, loras_table], outputs=[current_model, current_loras])
 
-webui.launch(show_api=False, server_name=host_url, server_port=args.port, share=args.share)
+webui.launch(inbrowser=args.autolaunch, show_api=False, server_name=host_url, server_port=args.port, share=args.share)
