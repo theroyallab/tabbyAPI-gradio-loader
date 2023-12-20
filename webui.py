@@ -21,6 +21,7 @@ args = parser.parse_args()
 if args.listen: host_url = "0.0.0.0"
 
 def read_preset(name):
+    if not name: raise gr.Error("Please select a preset to load.")
     path = pathlib.Path(f'./presets/{name}.json').resolve()
     with open(path, "r") as openfile:
         data = json.load(openfile)
@@ -28,12 +29,14 @@ def read_preset(name):
     return gr.Dropdown(value=data.get("name")), gr.Number(value=data.get("max_seq_len")), gr.Number(value=data.get("override_base_seq_len")), gr.Checkbox(value=data.get("gpu_split_auto")), gr.Textbox(value=data.get("gpu_split")), gr.Number(value=data.get("rope_scale")), gr.Number(value=data.get("rope_alpha")), gr.Checkbox(value=data.get("no_flash_attention")), gr.Radio(value=data.get("cache_mode")), gr.Textbox(value=data.get("prompt_template")), gr.Number(value=data.get("num_experts_per_token")), gr.Dropdown(value=data.get("draft_model_name")), gr.Number(value=data.get("draft_rope_scale")), gr.Number(value=data.get("draft_rope_alpha"))
 
 def del_preset(name):
+    if not name: raise gr.Error("Please select a preset to delete.")
     path = pathlib.Path(f'./presets/{name}.json').resolve()
     path.unlink()
     gr.Info(f'Preset {name} deleted.')
     return get_preset_list()
 
 def write_preset(name, model_name, max_seq_len, override_base_seq_len, gpu_split_auto, gpu_split, model_rope_scale, model_rope_alpha, no_flash_attention, cache_mode, prompt_template, num_experts_per_token, draft_model_name, draft_rope_scale, draft_rope_alpha):
+    if not name: raise gr.Error("Please enter a name for your new preset.")
     path = pathlib.Path(f'./presets/{name}.json').resolve()
     data = {
         "name" : model_name,
