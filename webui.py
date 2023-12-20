@@ -275,35 +275,35 @@ with gr.Blocks(title="TabbyAPI Gradio Loader") as webui:
         with gr.Group():
             models_drop = gr.Dropdown(choices=models, label="Select Model:", interactive=True)
             with gr.Row():
-                max_seq_len = gr.Number(value=return_none, label="Max Sequence Length:", precision=0, minimum=1, interactive=True)
-                override_base_seq_len = gr.Number(value=return_none, label="Override Base Sequence Length (used to override value in config.json for auto-ROPE scaling):", precision=0, minimum=1, interactive=True)
+                max_seq_len = gr.Number(value=return_none, label="Max Sequence Length:", precision=0, minimum=1, interactive=True, info="Configured context length to load the model with. If left blank, automatically reads from model config.")
+                override_base_seq_len = gr.Number(value=return_none, label="Override Base Sequence Length:", precision=0, minimum=1, interactive=True, info="Override the model's 'base' sequence length in config.json. Only relevant when using automatic rope alpha. Leave blank if unsure.")
             
             with gr.Row():
-                model_rope_scale = gr.Number(value=return_none, label="Rope Scale:", minimum=1, interactive=True)
-                model_rope_alpha = gr.Number(value=return_none, label="Rope Alpha:", minimum=1, interactive=True)
+                model_rope_scale = gr.Number(value=return_none, label="Rope Scale:", minimum=1, interactive=True, info="AKA compress_pos_emb or linear rope, used for models trained with modified positional embeddings, such as SuperHoT. If left blank, automatically reads from model config.")
+                model_rope_alpha = gr.Number(value=return_none, label="Rope Alpha:", minimum=1, interactive=True, info="Factor used for NTK-aware rope scaling. Leave blank for automatic calculation based on your configured max_seq_len and the model's base context length.")
 
         with gr.Accordion(open=False, label="Speculative Decoding"):
-            draft_models_drop = gr.Dropdown(choices=draft_models, label="Select Draft Model:", interactive=True)
+            draft_models_drop = gr.Dropdown(choices=draft_models, label="Select Draft Model:", interactive=True, info="Must share the same tokenizer and vocabulary as the primary model.")
             with gr.Row():
-                draft_rope_scale = gr.Number(value=return_none, label="Draft Rope Scale:", minimum=1, interactive=True)
-                draft_rope_alpha = gr.Number(value=return_none, label="Draft Rope Alpha:", minimum=1, interactive=True)
+                draft_rope_scale = gr.Number(value=return_none, label="Draft Rope Scale:", minimum=1, interactive=True, info="AKA compress_pos_emb or linear rope, used for models trained with modified positional embeddings, such as SuperHoT. If left blank, automatically reads from model config.")
+                draft_rope_alpha = gr.Number(value=return_none, label="Draft Rope Alpha:", minimum=1, interactive=True, info="Factor used for NTK-aware rope scaling. Leave blank for automatic scaling calculated based on your configured max_seq_len and the model's base context length.")
         
         with gr.Group():
             with gr.Row():
-                cache_mode = gr.Radio(value="FP16", label="Cache Mode:", choices=["FP8","FP16"], interactive=True)
-                no_flash_attention = gr.Checkbox(label="No Flash Attention", interactive=True)
-                gpu_split_auto = gr.Checkbox(value=True, label="GPU Split Auto", interactive=True)
+                cache_mode = gr.Radio(value="FP16", label="Cache Mode:", choices=["FP8","FP16"], interactive=True, info="FP8 cache sacrifices some precision to save VRAM.")
+                no_flash_attention = gr.Checkbox(label="No Flash Attention", interactive=True, info="Disables flash attention, only recommended for old unsupported GPUs.")
+                gpu_split_auto = gr.Checkbox(value=True, label="GPU Split Auto", interactive=True, info="Automatically determine how to split model layers between multiple GPUs.")
 
-            gpu_split = gr.Textbox(label="GPU Split:", placeholder="List of integers separated by commas", visible=False, interactive=True)
-            num_experts_per_token = gr.Number(value=return_none, label="Number of experts per token (MoE only):", precision=0, minimum=1, interactive=True)
-            prompt_template = gr.Textbox(label="Prompt Template:", interactive=True)
+            gpu_split = gr.Textbox(label="GPU Split:", placeholder="20.6,24", visible=False, interactive=True, info="Amount of VRAM TabbyAPI will be allowed to use on each GPU. List of numbers separated by commas, in gigabytes.")
+            num_experts_per_token = gr.Number(value=return_none, label="Number of experts per token (MoE only):", precision=0, minimum=1, interactive=True, info="Number of experts to use for simultaneous inference in mixture of experts. If left blank, automatically reads from model config.")
+            prompt_template = gr.Textbox(label="Prompt Template:", interactive=True, info="Jinja2 prompt template to be used for the chat completions endpoint.")
 
     with gr.Tab("Load Loras"):
         with gr.Row():
             load_loras_btn = gr.Button(value="Load Loras", variant="primary")
             unload_loras_btn = gr.Button(value="Unload All Loras", variant="stop")
             
-        loras_drop = gr.Dropdown(label="Select Loras:", choices=loras, multiselect=True, interactive=True)
+        loras_drop = gr.Dropdown(label="Select Loras:", choices=loras, multiselect=True, interactive=True, info="Select one or more loras to load, specify individual lora weights in the box that appears below (default 1.0).")
         loras_table = gr.List(label="Lora Scaling:", visible=False, datatype="number", type="array", interactive=True)
 
     # Define event listeners
