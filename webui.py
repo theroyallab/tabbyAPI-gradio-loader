@@ -1,6 +1,8 @@
 import gradio as gr
 import requests
 import argparse
+import json
+import pathlib
 
 conn_url = None
 conn_key = None
@@ -17,6 +19,51 @@ parser.add_argument("-l", "--listen", action="store_true", help="Share WebUI lin
 parser.add_argument("-s", "--share", action="store_true", help="Share WebUI link remotely via Gradio's built in tunnel")
 args = parser.parse_args()
 if args.listen: host_url = "0.0.0.0"
+
+def read_preset(name):
+    path = pathlib.Path(f'./presets/{name}.json').resolve()
+    with open(path, "r") as openfile:
+        data = json.load(openfile)
+    gr.Info(f'Preset {name} loaded.')
+    return gr.Dropdown(value=data.get("name")), gr.Number(value=data.get("max_seq_len")), gr.Number(value=data.get("override_base_seq_len")), gr.Checkbox(value=data.get("gpu_split_auto")), gr.Textbox(value=data.get("gpu_split")), gr.Number(value=data.get("rope_scale")), gr.Number(value=data.get("rope_alpha")), gr.Checkbox(value=data.get("no_flash_attention")), gr.Radio(value=data.get("cache_mode")), gr.Textbox(value=data.get("prompt_template")), gr.Number(value=data.get("num_experts_per_token")), gr.Dropdown(value=data.get("draft_model_name")), gr.Number(value=data.get("draft_rope_scale")), gr.Number(value=data.get("draft_rope_alpha"))
+
+def del_preset(name):
+    path = pathlib.Path(f'./presets/{name}.json').resolve()
+    path.unlink()
+    gr.Info(f'Preset {name} deleted.')
+    return get_preset_list()
+
+def write_preset(name, model_name, max_seq_len, override_base_seq_len, gpu_split_auto, gpu_split, model_rope_scale, model_rope_alpha, no_flash_attention, cache_mode, prompt_template, num_experts_per_token, draft_model_name, draft_rope_scale, draft_rope_alpha):
+    path = pathlib.Path(f'./presets/{name}.json').resolve()
+    data = {
+        "name" : model_name,
+        "max_seq_len" : max_seq_len,
+        "override_base_seq_len" : override_base_seq_len,
+        "gpu_split_auto" : gpu_split_auto,
+        "gpu_split" : gpu_split,
+        "rope_scale" : model_rope_scale,
+        "rope_alpha" : model_rope_alpha,
+        "no_flash_attention" : no_flash_attention,
+        "cache_mode" : cache_mode,
+        "prompt_template" : prompt_template,
+        "num_experts_per_token" : num_experts_per_token,
+        "draft_model_name" : draft_model_name,
+        "draft_rope_scale" : draft_rope_scale,
+        "draft_rope_alpha" : draft_rope_alpha
+    }
+    with open(path, "w") as outfile:
+        json.dump(data, outfile, indent=4)
+    gr.Info(f'Preset {name} saved.')
+    return gr.Textbox(value=None), get_preset_list()
+
+def get_preset_list(raw = False):
+    preset_path = pathlib.Path("./presets").resolve()
+    preset_list = []
+    for path in preset_path.iterdir():
+        if path.is_file() and path.name.endswith(".json"):
+            preset_list.append(path.stem)
+    if raw: return preset_list
+    return gr.Dropdown(choices=preset_list, value=None)
 
 def connect(data):
     global conn_url
@@ -170,12 +217,6 @@ def toggle_gpu_split(gpu_split_auto):
     else:
         return gr.Textbox(visible=True)
 
-def toggle_moe(moe_model):
-    if moe_model:
-        return gr.Textbox(value=None, visible=True)
-    else:
-        return gr.Textbox(value=None, visible=False)
-
 def return_none():
     # Stupid workaround for "Number" components being unable to default to None
     return None
@@ -202,6 +243,17 @@ with gr.Blocks(title="TabbyAPI Gradio Loader") as webui:
             load_model_btn = gr.Button(value="Load Model", variant="primary")
             unload_model_btn = gr.Button(value="Unload Model", variant="stop")
 
+        with gr.Accordion(open=False, label="Presets"):
+            with gr.Row():
+                load_preset = gr.Dropdown(choices=get_preset_list(True), label="Load Preset:", interactive=True)
+                save_preset = gr.Textbox(label="Save Preset:", interactive=True)
+            
+            with gr.Row():
+                load_preset_btn = gr.Button(value="Load Preset", variant="primary")
+                del_preset_btn = gr.Button(value="Delete Preset", variant="stop")
+                save_preset_btn = gr.Button(value="Save Preset", variant="primary")
+                refresh_preset_btn = gr.Button(value="Refresh Presets")
+            
         with gr.Group():
             models_drop = gr.Dropdown(label="Select Model:", interactive=True)
             with gr.Row():
@@ -223,10 +275,9 @@ with gr.Blocks(title="TabbyAPI Gradio Loader") as webui:
                 cache_mode = gr.Radio(value="FP16", label="Cache Mode:", choices=["FP8","FP16"], interactive=True)
                 no_flash_attention = gr.Checkbox(label="No Flash Attention", interactive=True)
                 gpu_split_auto = gr.Checkbox(value=True, label="GPU Split Auto", interactive=True)
-                moe_model = gr.Checkbox(value=False, label="MoE Model", interactive=True)
 
             gpu_split = gr.Textbox(label="GPU Split:", placeholder="List of integers separated by commas", visible=False, interactive=True)
-            num_experts_per_token = gr.Number(value=return_none, label="Number of Experts per Token:", precision=0, minimum=1, visible=False, interactive=True)
+            num_experts_per_token = gr.Number(value=return_none, label="Number of experts per token (MoE only):", precision=0, minimum=1, interactive=True)
             prompt_template = gr.Textbox(label="Prompt Template:", interactive=True)
 
     with gr.Tab("Load Loras"):
@@ -238,13 +289,20 @@ with gr.Blocks(title="TabbyAPI Gradio Loader") as webui:
         loras_table = gr.List(label="Lora Scaling:", visible=False, datatype="number", type="array", interactive=True)
 
     # Define event listeners
+    # Connection tab
     connect_btn.click(fn=connect, inputs={api_url,admin_key}, outputs=[model_list, draft_model_list, lora_list, models_drop, draft_models_drop, loras_drop, current_model, current_loras])
 
+    # Model tab
+    load_preset_btn.click(fn=read_preset, inputs=load_preset, outputs=[models_drop, max_seq_len, override_base_seq_len, gpu_split_auto, gpu_split, model_rope_scale, model_rope_alpha, no_flash_attention, cache_mode, prompt_template, num_experts_per_token, draft_models_drop, draft_rope_scale, draft_rope_alpha])
+    del_preset_btn.click(fn=del_preset, inputs=load_preset, outputs=load_preset)
+    save_preset_btn.click(fn=write_preset, inputs=[save_preset, models_drop, max_seq_len, override_base_seq_len, gpu_split_auto, gpu_split, model_rope_scale, model_rope_alpha, no_flash_attention, cache_mode, prompt_template, num_experts_per_token, draft_models_drop, draft_rope_scale, draft_rope_alpha], outputs=[save_preset, load_preset])
+    refresh_preset_btn.click(fn=get_preset_list, outputs=load_preset)
+
     gpu_split_auto.change(fn=toggle_gpu_split, inputs=gpu_split_auto, outputs=gpu_split)
-    moe_model.change(fn=toggle_moe, inputs=moe_model, outputs=num_experts_per_token)
     unload_model_btn.click(fn=unload_model, outputs=[current_model, current_loras])
     load_model_btn.click(fn=load_model, inputs=[models_drop, max_seq_len, override_base_seq_len, gpu_split_auto, gpu_split, model_rope_scale, model_rope_alpha, no_flash_attention, cache_mode, prompt_template, num_experts_per_token, draft_models_drop, draft_rope_scale, draft_rope_alpha], outputs=[current_model, current_loras])
 
+    # Loras tab
     loras_drop.change(update_loras_table, inputs=loras_drop, outputs=loras_table)
     unload_loras_btn.click(fn=unload_loras, outputs=[current_model, current_loras])
     load_loras_btn.click(fn=load_loras, inputs=[loras_drop, loras_table], outputs=[current_model, current_loras])
