@@ -141,7 +141,7 @@ def get_preset_list(raw=False):
     preset_list.sort(key=str.lower)
     if raw:
         return preset_list
-    return gr.Dropdown(choices=preset_list, value=None)
+    return gr.Dropdown(choices=[""] + preset_list, value=None)
 
 
 def connect(api_url, admin_key, silent=False):
@@ -200,11 +200,11 @@ def connect(api_url, admin_key, silent=False):
 
 
 def get_model_list():
-    return gr.Dropdown(choices=models, value=None)
+    return gr.Dropdown(choices=[""] + models, value=None)
 
 
 def get_draft_model_list():
-    return gr.Dropdown(choices=draft_models, value=None)
+    return gr.Dropdown(choices=[""] + draft_models, value=None)
 
 
 def get_lora_list():
@@ -424,7 +424,7 @@ with gr.Blocks(title="TabbyAPI Gradio Loader") as webui:
         with gr.Accordion(open=False, label="Presets"):
             with gr.Row():
                 load_preset = gr.Dropdown(
-                    choices=get_preset_list(True),
+                    choices=[""] + get_preset_list(True),
                     label="Load Preset:",
                     interactive=True,
                 )
@@ -438,7 +438,7 @@ with gr.Blocks(title="TabbyAPI Gradio Loader") as webui:
 
         with gr.Group():
             models_drop = gr.Dropdown(
-                choices=models, label="Select Model:", interactive=True
+                choices=[""] + models, label="Select Model:", interactive=True
             )
             with gr.Row():
                 max_seq_len = gr.Number(
@@ -476,7 +476,7 @@ with gr.Blocks(title="TabbyAPI Gradio Loader") as webui:
 
         with gr.Accordion(open=False, label="Speculative Decoding"):
             draft_models_drop = gr.Dropdown(
-                choices=draft_models,
+                choices=[""] + draft_models,
                 label="Select Draft Model:",
                 interactive=True,
                 info="Must share the same tokenizer and vocabulary as the primary model.",
