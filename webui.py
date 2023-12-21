@@ -138,6 +138,7 @@ def get_preset_list(raw=False):
     for path in preset_path.iterdir():
         if path.is_file() and path.name.endswith(".json"):
             preset_list.append(path.stem)
+    preset_list.sort(key=str.lower)
     if raw:
         return preset_list
     return gr.Dropdown(choices=preset_list, value=None)
@@ -172,14 +173,17 @@ def connect(api_url, admin_key, silent=False):
     models = []
     for model in m.json().get("data"):
         models.append(model.get("id"))
+    models.sort(key=str.lower)
 
     draft_models = []
     for draft_model in d.json().get("data"):
         draft_models.append(draft_model.get("id"))
+    draft_models.sort(key=str.lower)
 
     loras = []
     for lora in lo.json().get("data"):
         loras.append(lora.get("id"))
+    loras.sort(key=str.lower)
 
     if not silent:
         gr.Info("TabbyAPI connected.")
