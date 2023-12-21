@@ -163,10 +163,8 @@ def connect(api_url, admin_key, silent=False):
             url=api_url + "/v1/lora/list", headers={"X-api-key": admin_key}
         )
         lo.raise_for_status()
-    except:
-        raise gr.Error(
-            "An error was encountered, please check your inputs and traceback."
-        )
+    except Exception as e:
+        raise gr.Error(e)
 
     conn_url = api_url
     conn_key = admin_key
@@ -306,10 +304,8 @@ def load_model(
         r.raise_for_status()
         gr.Info("Model successfully loaded.")
         return get_current_model(), get_current_loras()
-    except:
-        raise gr.Error(
-            "An error was encountered, please check your inputs and traceback."
-        )
+    except Exception as e:
+        raise gr.Error(e)
 
 
 def load_loras(loras, scalings):
@@ -335,10 +331,8 @@ def load_loras(loras, scalings):
         r.raise_for_status()
         gr.Info("Loras successfully loaded.")
         return get_current_model(), get_current_loras()
-    except:
-        raise gr.Error(
-            "An error was encountered, please check your inputs and traceback."
-        )
+    except Exception as e:
+        raise gr.Error(e)
 
 
 def unload_model():
@@ -349,10 +343,8 @@ def unload_model():
         r.raise_for_status()
         gr.Info("Model unloaded.")
         return get_current_model(), get_current_loras()
-    except:
-        raise gr.Error(
-            "An error was encountered, please check your inputs and traceback."
-        )
+    except Exception as e:
+        raise gr.Error(e)
 
 
 def unload_loras():
@@ -363,10 +355,8 @@ def unload_loras():
         r.raise_for_status()
         gr.Info("All loras unloaded.")
         return get_current_model(), get_current_loras()
-    except:
-        raise gr.Error(
-            "An error was encountered, please check your inputs and traceback."
-        )
+    except Exception as e:
+        raise gr.Error(e)
 
 
 def toggle_gpu_split(gpu_split_auto):
@@ -389,7 +379,7 @@ if args.admin_key:
         connect(api_url=args.endpoint_url, admin_key=args.admin_key, silent=True)
         init_model_text = get_current_model().value
         init_lora_text = get_current_loras().value
-    except:
+    except Exception:
         print("Automatic connection failed, continuing to WebUI.")
 
 # Setup UI elements
