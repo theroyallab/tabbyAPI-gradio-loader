@@ -218,8 +218,12 @@ def get_current_model():
     if not model_card.get("id"):
         return gr.Textbox(value=None)
     params = model_card.get("parameters")
-    spec_decode = bool(params.get("draft"))
-    model = f'{model_card.get("id")} (context: {params.get("max_seq_len")}, rope scale: {params.get("rope_scale")}, rope alpha: {params.get("rope_alpha")}, speculative decoding: {spec_decode})'
+    draft_model_card = params.get("draft")
+    model = f'{model_card.get("id")} (context: {params.get("max_seq_len")}, rope scale: {params.get("rope_scale")}, rope alpha: {params.get("rope_alpha")})'
+
+    if draft_model_card:
+        draft_params = draft_model_card.get("parameters")
+        model += f' | {draft_model_card.get("id")} (rope scale: {draft_params.get("rope_scale")}, rope alpha: {draft_params.get("rope_alpha")})'
     return gr.Textbox(value=model)
 
 
