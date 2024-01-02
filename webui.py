@@ -76,6 +76,7 @@ def read_preset(name):
         gr.Radio(value=data.get("cache_mode")),
         gr.Dropdown(value=data.get("prompt_template")),
         gr.Number(value=data.get("num_experts_per_token")),
+        gr.Checkbox(value=data.get("use_cfg")),
         gr.Dropdown(value=data.get("draft_model_name")),
         gr.Number(value=data.get("draft_rope_scale")),
         gr.Number(value=data.get("draft_rope_alpha")),
@@ -104,6 +105,7 @@ def write_preset(
     cache_mode,
     prompt_template,
     num_experts_per_token,
+    use_cfg,
     draft_model_name,
     draft_rope_scale,
     draft_rope_alpha,
@@ -123,6 +125,7 @@ def write_preset(
         "cache_mode": cache_mode,
         "prompt_template": prompt_template,
         "num_experts_per_token": num_experts_per_token,
+        "use_cfg": use_cfg,
         "draft_model_name": draft_model_name,
         "draft_rope_scale": draft_rope_scale,
         "draft_rope_alpha": draft_rope_alpha,
@@ -235,7 +238,7 @@ def get_current_model():
         return gr.Textbox(value=None)
     params = model_card.get("parameters")
     draft_model_card = params.get("draft")
-    model = f'{model_card.get("id")} (context: {params.get("max_seq_len")}, rope scale: {params.get("rope_scale")}, rope alpha: {params.get("rope_alpha")})'
+    model = f'{model_card.get("id")} (context: {params.get("max_seq_len")}, rope scale: {params.get("rope_scale")}, rope alpha: {params.get("rope_alpha")}, cfg: {params.get("use_cfg")})'
 
     if draft_model_card:
         draft_params = draft_model_card.get("parameters")
@@ -282,6 +285,7 @@ def load_model(
     cache_mode,
     prompt_template,
     num_experts_per_token,
+    use_cfg,
     draft_model_name,
     draft_rope_scale,
     draft_rope_alpha,
@@ -314,6 +318,7 @@ def load_model(
         "cache_mode": cache_mode,
         "prompt_template": prompt_template,
         "num_experts_per_token": num_experts_per_token,
+        "use_cfg": use_cfg,
         "draft": draft_request,
     }
     try:
@@ -537,6 +542,11 @@ with gr.Blocks(title="TabbyAPI Gradio Loader") as webui:
                     interactive=True,
                     info="Automatically determine how to split model layers between multiple GPUs.",
                 )
+                use_cfg = gr.Checkbox(
+                    label="Use CFG",
+                    interactive=True,
+                    info="Enable classifier-free guidance. This requires additional VRAM for the negative prompt cache.",
+                )
 
             gpu_split = gr.Textbox(
                 label="GPU Split:",
@@ -614,6 +624,7 @@ with gr.Blocks(title="TabbyAPI Gradio Loader") as webui:
             cache_mode,
             prompt_template,
             num_experts_per_token,
+            use_cfg,
             draft_models_drop,
             draft_rope_scale,
             draft_rope_alpha,
@@ -635,6 +646,7 @@ with gr.Blocks(title="TabbyAPI Gradio Loader") as webui:
             cache_mode,
             prompt_template,
             num_experts_per_token,
+            use_cfg,
             draft_models_drop,
             draft_rope_scale,
             draft_rope_alpha,
@@ -659,6 +671,7 @@ with gr.Blocks(title="TabbyAPI Gradio Loader") as webui:
             cache_mode,
             prompt_template,
             num_experts_per_token,
+            use_cfg,
             draft_models_drop,
             draft_rope_scale,
             draft_rope_alpha,
