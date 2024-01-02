@@ -13,6 +13,7 @@ host_url = "127.0.0.1"
 models = []
 draft_models = []
 loras = []
+templates = []
 
 parser = argparse.ArgumentParser(description="TabbyAPI Gradio Loader")
 parser.add_argument(
@@ -73,7 +74,7 @@ def read_preset(name):
         gr.Number(value=data.get("rope_alpha")),
         gr.Checkbox(value=data.get("no_flash_attention")),
         gr.Radio(value=data.get("cache_mode")),
-        gr.Textbox(value=data.get("prompt_template")),
+        gr.Dropdown(value=data.get("prompt_template")),
         gr.Number(value=data.get("num_experts_per_token")),
         gr.Dropdown(value=data.get("draft_model_name")),
         gr.Number(value=data.get("draft_rope_scale")),
@@ -150,6 +151,7 @@ def connect(api_url, admin_key, silent=False):
     global models
     global draft_models
     global loras
+    global templates
 
     try:
         m = requests.get(
@@ -164,6 +166,10 @@ def connect(api_url, admin_key, silent=False):
             url=api_url + "/v1/lora/list", headers={"X-api-key": admin_key}
         )
         lo.raise_for_status()
+        t = requests.get(
+            url=api_url + "/v1/template/list", headers={"X-api-key": admin_key}
+        )
+        t.raise_for_status()
     except Exception as e:
         raise gr.Error(e)
 
@@ -185,6 +191,11 @@ def connect(api_url, admin_key, silent=False):
         loras.append(lora.get("id"))
     loras.sort(key=str.lower)
 
+    templates = []
+    for template in t.json().get("data"):
+        templates.append(template)
+    templates.sort(key=str.lower)
+
     if not silent:
         gr.Info("TabbyAPI connected.")
         return (
@@ -194,6 +205,7 @@ def connect(api_url, admin_key, silent=False):
             get_model_list(),
             get_draft_model_list(),
             get_lora_list(),
+            get_template_list(),
             get_current_model(),
             get_current_loras(),
         )
@@ -209,6 +221,10 @@ def get_draft_model_list():
 
 def get_lora_list():
     return gr.Dropdown(choices=loras, value=[])
+
+
+def get_template_list():
+    return gr.Dropdown(choices=[""] + templates, value=None)
 
 
 def get_current_model():
@@ -537,7 +553,8 @@ with gr.Blocks(title="TabbyAPI Gradio Loader") as webui:
                 interactive=True,
                 info="Number of experts to use for simultaneous inference in mixture of experts. If left blank, automatically reads from model config.",
             )
-            prompt_template = gr.Textbox(
+            prompt_template = gr.Dropdown(
+                choices=[""] + templates,
                 label="Prompt Template:",
                 interactive=True,
                 info="Jinja2 prompt template to be used for the chat completions endpoint.",
@@ -575,6 +592,7 @@ with gr.Blocks(title="TabbyAPI Gradio Loader") as webui:
             models_drop,
             draft_models_drop,
             loras_drop,
+            prompt_template,
             current_model,
             current_loras,
         ],
