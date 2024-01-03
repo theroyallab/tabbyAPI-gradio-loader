@@ -565,6 +565,7 @@ with gr.Blocks(title="TabbyAPI Gradio Loader") as webui:
             )
             prompt_template = gr.Dropdown(
                 choices=[""] + templates,
+                value="",
                 label="Prompt Template:",
                 interactive=True,
                 info="Jinja2 prompt template to be used for the chat completions endpoint.",
