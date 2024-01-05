@@ -322,7 +322,7 @@ def load_model(
         "draft": draft_request,
     }
     try:
-        requests.get(
+        requests.post(
             url=conn_url + "/v1/model/unload", headers={"X-admin-key": conn_key}
         )
         r = requests.post(
@@ -349,7 +349,7 @@ def load_loras(loras, scalings):
             raise gr.Error("Check your scaling values and ensure they are valid!")
     request = {"loras": load_list}
     try:
-        requests.get(
+        requests.post(
             url=conn_url + "/v1/lora/unload", headers={"X-admin-key": conn_key}
         )
         r = requests.post(
@@ -366,7 +366,7 @@ def load_loras(loras, scalings):
 
 def unload_model():
     try:
-        r = requests.get(
+        r = requests.post(
             url=conn_url + "/v1/model/unload", headers={"X-admin-key": conn_key}
         )
         r.raise_for_status()
@@ -378,7 +378,7 @@ def unload_model():
 
 def unload_loras():
     try:
-        r = requests.get(
+        r = requests.post(
             url=conn_url + "/v1/lora/unload", headers={"X-admin-key": conn_key}
         )
         r.raise_for_status()
