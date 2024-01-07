@@ -395,11 +395,6 @@ def toggle_gpu_split(gpu_split_auto):
         return gr.Textbox(visible=True)
 
 
-def return_none():
-    # Stupid workaround for "Number" components being unable to default to None
-    return None
-
-
 # Auto-attempt connection if admin key is provided
 init_model_text = None
 init_lora_text = None
@@ -467,7 +462,7 @@ with gr.Blocks(title="TabbyAPI Gradio Loader") as webui:
             )
             with gr.Row():
                 max_seq_len = gr.Number(
-                    value=return_none,
+                    value=lambda: None,
                     label="Max Sequence Length:",
                     precision=0,
                     minimum=1,
@@ -475,7 +470,7 @@ with gr.Blocks(title="TabbyAPI Gradio Loader") as webui:
                     info="Configured context length to load the model with. If left blank, automatically reads from model config.",
                 )
                 override_base_seq_len = gr.Number(
-                    value=return_none,
+                    value=lambda: None,
                     label="Override Base Sequence Length:",
                     precision=0,
                     minimum=1,
@@ -485,14 +480,14 @@ with gr.Blocks(title="TabbyAPI Gradio Loader") as webui:
 
             with gr.Row():
                 model_rope_scale = gr.Number(
-                    value=return_none,
+                    value=lambda: None,
                     label="Rope Scale:",
                     minimum=1,
                     interactive=True,
                     info="AKA compress_pos_emb or linear rope, used for models trained with modified positional embeddings, such as SuperHoT. If left blank, automatically reads from model config.",
                 )
                 model_rope_alpha = gr.Number(
-                    value=return_none,
+                    value=lambda: None,
                     label="Rope Alpha:",
                     minimum=1,
                     interactive=True,
@@ -508,14 +503,14 @@ with gr.Blocks(title="TabbyAPI Gradio Loader") as webui:
             )
             with gr.Row():
                 draft_rope_scale = gr.Number(
-                    value=return_none,
+                    value=lambda: None,
                     label="Draft Rope Scale:",
                     minimum=1,
                     interactive=True,
                     info="AKA compress_pos_emb or linear rope, used for models trained with modified positional embeddings, such as SuperHoT. If left blank, automatically reads from model config.",
                 )
                 draft_rope_alpha = gr.Number(
-                    value=return_none,
+                    value=lambda: None,
                     label="Draft Rope Alpha:",
                     minimum=1,
                     interactive=True,
@@ -556,7 +551,7 @@ with gr.Blocks(title="TabbyAPI Gradio Loader") as webui:
                 info="Amount of VRAM TabbyAPI will be allowed to use on each GPU. List of numbers separated by commas, in gigabytes.",
             )
             num_experts_per_token = gr.Number(
-                value=return_none,
+                value=lambda: None,
                 label="Number of experts per token (MoE only):",
                 precision=0,
                 minimum=1,
