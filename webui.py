@@ -522,9 +522,9 @@ with gr.Blocks(title="TabbyAPI Gradio Loader") as webui:
                 cache_mode = gr.Radio(
                     value="FP16",
                     label="Cache Mode:",
-                    choices=["FP8", "FP16"],
+                    choices=["Q4", "FP8", "FP16"],
                     interactive=True,
-                    info="FP8 cache sacrifices some precision to save VRAM.",
+                    info="Q4 and FP8 cache sacrifice some precision to save VRAM compared to full FP16 precision.",
                 )
                 no_flash_attention = gr.Checkbox(
                     label="No Flash Attention",
