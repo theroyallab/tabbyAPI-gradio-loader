@@ -395,6 +395,32 @@ def toggle_gpu_split(gpu_split_auto):
         return gr.Textbox(visible=True)
 
 
+def load_template(prompt_template):
+    try:
+        r = requests.post(
+            url=conn_url + "/v1/template/switch",
+            headers={"X-admin-key": conn_key},
+            json={"name": prompt_template},
+        )
+        r.raise_for_status()
+        gr.Info(f"Prompt template switched to {prompt_template}.")
+        return
+    except Exception as e:
+        raise gr.Error(e)
+
+
+def unload_template():
+    try:
+        r = requests.post(
+            url=conn_url + "/v1/template/unload", headers={"X-admin-key": conn_key}
+        )
+        r.raise_for_status()
+        gr.Info("Prompt template unloaded.")
+        return
+    except Exception as e:
+        raise gr.Error(e)
+
+
 # Auto-attempt connection if admin key is provided
 init_model_text = None
 init_lora_text = None
@@ -558,6 +584,8 @@ with gr.Blocks(title="TabbyAPI Gradio Loader") as webui:
                 interactive=True,
                 info="Number of experts to use for simultaneous inference in mixture of experts. If left blank, automatically reads from model config.",
             )
+
+        with gr.Accordion(open=True, label="Prompt Templates"):
             prompt_template = gr.Dropdown(
                 choices=[""] + templates,
                 value="",
@@ -565,6 +593,9 @@ with gr.Blocks(title="TabbyAPI Gradio Loader") as webui:
                 interactive=True,
                 info="Jinja2 prompt template to be used for the chat completions endpoint.",
             )
+            with gr.Row():
+                load_template_btn = gr.Button(value="Load Template", variant="primary")
+                unload_template_btn = gr.Button(value="Unload Template", variant="stop")
 
     with gr.Tab("Load Loras"):
         with gr.Row():
@@ -674,6 +705,8 @@ with gr.Blocks(title="TabbyAPI Gradio Loader") as webui:
         ],
         outputs=[current_model, current_loras],
     )
+    load_template_btn.click(fn=load_template, inputs=prompt_template)
+    unload_template_btn.click(fn=unload_template)
 
     # Loras tab
     loras_drop.change(update_loras_table, inputs=loras_drop, outputs=loras_table)
