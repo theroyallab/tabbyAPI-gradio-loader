@@ -157,6 +157,18 @@ def connect(api_url, admin_key, silent=False):
     global templates
 
     try:
+        a = requests.get(
+            url=api_url + "/v1/auth/permission", headers={"X-api-key": admin_key}
+        )
+        a.raise_for_status()
+        if a.json().get("permission") != "admin":
+            raise ValueError(
+                "The provided authentication key must be an admin key to access the loader's functions."
+            )
+    except Exception as e:
+        raise gr.Error(e)
+
+    try:
         m = requests.get(
             url=api_url + "/v1/model/list", headers={"X-api-key": admin_key}
         )
