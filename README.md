@@ -33,6 +33,7 @@ To get started, make sure you have the following installed on your system:
 | `-h` or`--help`          |  Show this help message and exit                             |
 | `-p` or `--port`         |  Specify port to host the WebUI on (default 7860)            |
 | `-l` or `--listen`       |  Share WebUI link via LAN                                    |
+| `-n` or `--noauth`       |  Indicate that your TabbyAPI endpoint uses no auth           |
 | `-s` or `--share`        |  Share WebUI link remotely via Gradio's built in tunnel      |
 | `-a` or `--autolaunch`   |  Launch browser after starting WebUI                         |
 | `-e` or `--endpoint_url` |  TabbyAPI endpoint URL (default http://localhost:5000)       |
