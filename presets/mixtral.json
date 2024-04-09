@@ -13,5 +13,8 @@
     "use_cfg": false,
     "draft_model_name": "",
     "draft_rope_scale": null,
-    "draft_rope_alpha": null
+    "draft_rope_alpha": null,
+    "fasttensors": false,
+    "autosplit_reserve": "",
+    "chunk_size": null
 }

@@ -86,6 +86,9 @@ def read_preset(name):
         gr.Dropdown(value=data.get("draft_model_name")),
         gr.Number(value=data.get("draft_rope_scale")),
         gr.Number(value=data.get("draft_rope_alpha")),
+        gr.Checkbox(value=data.get("fasttensors")),
+        gr.Textbox(value=data.get("autosplit_reserve")),
+        gr.Number(value=data.get("chunk_size")),
     )
 
 
@@ -115,6 +118,9 @@ def write_preset(
     draft_model_name,
     draft_rope_scale,
     draft_rope_alpha,
+    fasttensors,
+    autosplit_reserve,
+    chunk_size,
 ):
     if not name:
         raise gr.Error("Please enter a name for your new preset.")
@@ -135,6 +141,9 @@ def write_preset(
         "draft_model_name": draft_model_name,
         "draft_rope_scale": draft_rope_scale,
         "draft_rope_alpha": draft_rope_alpha,
+        "fasttensors": fasttensors,
+        "autosplit_reserve": autosplit_reserve,
+        "chunk_size": chunk_size,
     }
     with open(path, "w") as outfile:
         json.dump(data, outfile, indent=4)
@@ -308,6 +317,9 @@ def load_model(
     draft_model_name,
     draft_rope_scale,
     draft_rope_alpha,
+    fasttensors,
+    autosplit_reserve,
+    chunk_size,
 ):
     if not model_name:
         raise gr.Error("Specify a model to load!")
@@ -338,6 +350,9 @@ def load_model(
         "prompt_template": prompt_template,
         "num_experts_per_token": num_experts_per_token,
         "use_cfg": use_cfg,
+        "fasttensors": fasttensors,
+        "autosplit_reserve": autosplit_reserve,
+        "chunk_size": chunk_size,
         "draft": draft_request,
     }
     try:
@@ -409,9 +424,9 @@ def unload_loras():
 
 def toggle_gpu_split(gpu_split_auto):
     if gpu_split_auto:
-        return gr.Textbox(value=None, visible=False)
+        return gr.Textbox(value=None, visible=False), gr.Textbox(visible=True)
     else:
-        return gr.Textbox(visible=True)
+        return gr.Textbox(visible=True), gr.Textbox(value=None, visible=False)
 
 
 def load_template(prompt_template):
@@ -572,6 +587,7 @@ with gr.Blocks(title="TabbyAPI Gradio Loader") as webui:
                     info="Q4 and FP8 cache sacrifice some precision to save VRAM compared to full FP16 precision.",
                 )
                 no_flash_attention = gr.Checkbox(
+                    value=False,
                     label="No Flash Attention",
                     interactive=True,
                     info="Disables flash attention, only recommended for old unsupported GPUs.",
@@ -583,9 +599,16 @@ with gr.Blocks(title="TabbyAPI Gradio Loader") as webui:
                     info="Automatically determine how to split model layers between multiple GPUs.",
                 )
                 use_cfg = gr.Checkbox(
+                    value=False,
                     label="Use CFG",
                     interactive=True,
                     info="Enable classifier-free guidance. This requires additional VRAM for the negative prompt cache.",
+                )
+                fasttensors = gr.Checkbox(
+                    value=False,
+                    label="Use Fasttensors",
+                    interactive=True,
+                    info="Enable to possibly increase model loading speeds on some systems.",
                 )
 
             gpu_split = gr.Textbox(
@@ -595,20 +618,36 @@ with gr.Blocks(title="TabbyAPI Gradio Loader") as webui:
                 interactive=True,
                 info="Amount of VRAM TabbyAPI will be allowed to use on each GPU. List of numbers separated by commas, in gigabytes.",
             )
-            num_experts_per_token = gr.Number(
-                value=lambda: None,
-                label="Number of experts per token (MoE only):",
-                precision=0,
-                minimum=1,
+            autosplit_reserve = gr.Textbox(
+                label="Auto-split Reserve:",
+                placeholder="96",
                 interactive=True,
-                info="Number of experts to use for simultaneous inference in mixture of experts. If left blank, automatically reads from model config.",
+                info="Amount of VRAM to keep reserved on each GPU when using auto split. List of numbers separated by commas, in megabytes.",
             )
+            with gr.Row():
+                num_experts_per_token = gr.Number(
+                    value=lambda: None,
+                    label="Number of experts per token (MoE only):",
+                    precision=0,
+                    minimum=1,
+                    interactive=True,
+                    info="Number of experts to use for simultaneous inference in mixture of experts. If left blank, automatically reads from model config.",
+                )
+                chunk_size = gr.Number(
+                    value=lambda: None,
+                    label="Chunk Size:",
+                    precision=0,
+                    minimum=1,
+                    interactive=True,
+                    info="The number of prompt tokens to ingest at a time. A lower value reduces VRAM usage at the cost of ingestion speed.",
+                )
 
         with gr.Accordion(open=True, label="Prompt Templates"):
             prompt_template = gr.Dropdown(
                 choices=[""] + templates,
                 value="",
                 label="Prompt Template:",
+                allow_custom_value=True,
                 interactive=True,
                 info="Jinja2 prompt template to be used for the chat completions endpoint.",
             )
@@ -674,6 +713,9 @@ with gr.Blocks(title="TabbyAPI Gradio Loader") as webui:
             draft_models_drop,
             draft_rope_scale,
             draft_rope_alpha,
+            fasttensors,
+            autosplit_reserve,
+            chunk_size,
         ],
     )
     del_preset_btn.click(fn=del_preset, inputs=load_preset, outputs=load_preset)
@@ -696,12 +738,19 @@ with gr.Blocks(title="TabbyAPI Gradio Loader") as webui:
             draft_models_drop,
             draft_rope_scale,
             draft_rope_alpha,
+            fasttensors,
+            autosplit_reserve,
+            chunk_size,
         ],
         outputs=[save_preset, load_preset],
     )
     refresh_preset_btn.click(fn=get_preset_list, outputs=load_preset)
 
-    gpu_split_auto.change(fn=toggle_gpu_split, inputs=gpu_split_auto, outputs=gpu_split)
+    gpu_split_auto.change(
+        fn=toggle_gpu_split,
+        inputs=gpu_split_auto,
+        outputs=[gpu_split, autosplit_reserve],
+    )
     unload_model_btn.click(fn=unload_model, outputs=[current_model, current_loras])
     load_model_btn.click(
         fn=load_model,
@@ -721,6 +770,9 @@ with gr.Blocks(title="TabbyAPI Gradio Loader") as webui:
             draft_models_drop,
             draft_rope_scale,
             draft_rope_alpha,
+            fasttensors,
+            autosplit_reserve,
+            chunk_size,
         ],
         outputs=[current_model, current_loras],
     )
