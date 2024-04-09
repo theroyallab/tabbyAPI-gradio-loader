@@ -329,6 +329,14 @@ def load_model(
             gpu_split_parsed = [float(i) for i in list(gpu_split.split(","))]
     except ValueError:
         raise gr.Error("Check your GPU split values and ensure they are valid!")
+    autosplit_reserve_parsed = []
+    try:
+        if autosplit_reserve:
+            autosplit_reserve_parsed = [
+                float(i) for i in list(autosplit_reserve.split(","))
+            ]
+    except ValueError:
+        raise gr.Error("Check your autosplit reserve values and ensure they are valid!")
     if draft_model_name:
         draft_request = {
             "draft_model_name": draft_model_name,
@@ -351,7 +359,7 @@ def load_model(
         "num_experts_per_token": num_experts_per_token,
         "use_cfg": use_cfg,
         "fasttensors": fasttensors,
-        "autosplit_reserve": autosplit_reserve,
+        "autosplit_reserve": autosplit_reserve_parsed,
         "chunk_size": chunk_size,
         "draft": draft_request,
     }
