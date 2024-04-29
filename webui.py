@@ -17,6 +17,8 @@ draft_models = []
 loras = []
 templates = []
 
+model_load_task = None
+model_load_state = False
 download_task = None
 
 parser = argparse.ArgumentParser(description="TabbyAPI Gradio Loader")
@@ -305,7 +307,7 @@ def update_loras_table(loras):
         return gr.List(value=None, visible=False)
 
 
-def load_model(
+async def load_model(
     model_name,
     max_seq_len,
     override_base_seq_len,
@@ -325,6 +327,9 @@ def load_model(
     autosplit_reserve,
     chunk_size,
 ):
+    global model_load_task
+    global model_load_state
+    model_load_state = True
     if not model_name:
         raise gr.Error("Specify a model to load!")
     gpu_split_parsed = []
@@ -371,16 +376,42 @@ def load_model(
         requests.post(
             url=conn_url + "/v1/model/unload", headers={"X-admin-key": conn_key}
         )
-        r = requests.post(
-            url=conn_url + "/v1/model/load",
-            headers={"X-admin-key": conn_key},
-            json=request,
+        async with aiohttp.ClientSession() as session:
+            gr.Info(f"Loading {model_name}.")
+            model_load_task = asyncio.create_task(
+                session.post(
+                    url=conn_url + "/v1/model/load",
+                    headers={"X-admin-key": conn_key},
+                    json=request,
+                )
+            )
+            r = await model_load_task
+            r.raise_for_status()
+            async for chunk in r.content:
+                if not model_load_state:
+                    requests.post(
+                        url=conn_url + "/v1/model/unload",
+                        headers={"X-admin-key": conn_key},
+                    )
+                    gr.Info("Model load canceled.")
+                    break
+                chunk_str = chunk.decode("utf-8")
+                if chunk_str.startswith("data: "):
+                    data = json.loads(chunk_str.lstrip("data: "))
+                    if data.get("status") == "finished":
+                        gr.Info("Model successfully loaded.")
+            return get_current_model(), get_current_loras()
+    except asyncio.CancelledError:
+        requests.post(
+            url=conn_url + "/v1/model/unload", headers={"X-admin-key": conn_key}
         )
-        r.raise_for_status()
-        gr.Info("Model successfully loaded.")
-        return get_current_model(), get_current_loras()
+        gr.Info("Model load canceled.")
     except Exception as e:
         raise gr.Error(e)
+    finally:
+        await session.close()
+        model_load_task = None
+        model_load_state = False
 
 
 def load_loras(loras, scalings):
@@ -411,15 +442,17 @@ def load_loras(loras, scalings):
 
 
 def unload_model():
-    try:
-        r = requests.post(
+    global model_load_task
+    global model_load_state
+    if model_load_task or model_load_state:
+        model_load_task.cancel()
+        model_load_state = False
+    else:
+        requests.post(
             url=conn_url + "/v1/model/unload", headers={"X-admin-key": conn_key}
         )
-        r.raise_for_status()
         gr.Info("Model unloaded.")
-        return get_current_model(), get_current_loras()
-    except Exception as e:
-        raise gr.Error(e)
+    return get_current_model(), get_current_loras()
 
 
 def unload_loras():
@@ -469,8 +502,10 @@ def unload_template():
 
 async def download(repo_id, revision, repo_type, folder_name, token):
     global download_task
-    if download_task:
-        return
+    if not revision:
+        revision = "main"
+    if not folder_name:
+        folder_name = repo_id.replace("/", "_")
     request = {
         "repo_id": repo_id,
         "revision": revision,
@@ -503,7 +538,7 @@ async def download(repo_id, revision, repo_type, folder_name, token):
         download_task = None
 
 
-async def cancel_download():
+def cancel_download():
     global download_task
     if download_task:
         download_task.cancel()
@@ -553,7 +588,9 @@ with gr.Blocks(title="TabbyAPI Gradio Loader") as webui:
     with gr.Tab("Load Model"):
         with gr.Row():
             load_model_btn = gr.Button(value="Load Model", variant="primary")
-            unload_model_btn = gr.Button(value="Unload Model", variant="stop")
+            unload_model_btn = gr.Button(
+                value="Cancel Load/Unload Model", variant="stop"
+            )
 
         with gr.Accordion(open=False, label="Presets"):
             with gr.Row():
@@ -867,6 +904,7 @@ with gr.Blocks(title="TabbyAPI Gradio Loader") as webui:
             chunk_size,
         ],
         outputs=[current_model, current_loras],
+        concurrency_limit=1,
     )
     load_template_btn.click(fn=load_template, inputs=prompt_template)
     unload_template_btn.click(fn=unload_template)
@@ -882,7 +920,9 @@ with gr.Blocks(title="TabbyAPI Gradio Loader") as webui:
 
     # HF Downloader tab
     download_btn.click(
-        fn=download, inputs=[repo_id, revision, repo_type, folder_name, token]
+        fn=download,
+        inputs=[repo_id, revision, repo_type, folder_name, token],
+        concurrency_limit=1,
     )
     cancel_download_btn.click(fn=cancel_download)
 
