@@ -474,7 +474,7 @@ async def download(repo_id, revision, repo_type, folder_name, token):
     request = {
         "repo_id": repo_id,
         "revision": revision,
-        "repo_type": repo_type,
+        "repo_type": repo_type.lower(),
         "folder_name": folder_name,
         "token": token,
     }
