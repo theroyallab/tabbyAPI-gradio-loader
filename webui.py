@@ -1,7 +1,9 @@
 import argparse
+import asyncio
 import json
 import pathlib
 
+import aiohttp
 import gradio as gr
 import requests
 
@@ -14,6 +16,8 @@ models = []
 draft_models = []
 loras = []
 templates = []
+
+download_task = None
 
 parser = argparse.ArgumentParser(description="TabbyAPI Gradio Loader")
 parser.add_argument(
@@ -463,6 +467,48 @@ def unload_template():
         raise gr.Error(e)
 
 
+async def download(repo_id, revision, repo_type, folder_name, token):
+    global download_task
+    if download_task:
+        return
+    request = {
+        "repo_id": repo_id,
+        "revision": revision,
+        "repo_type": repo_type,
+        "folder_name": folder_name,
+        "token": token,
+    }
+    try:
+        async with aiohttp.ClientSession() as session:
+            gr.Info(f"Beginning download of {repo_id}.")
+            download_task = asyncio.create_task(
+                session.post(
+                    url=conn_url + "/v1/download",
+                    headers={"X-admin-key": conn_key},
+                    json=request,
+                )
+            )
+            r = await download_task
+            r.raise_for_status()
+            content = await r.json()
+            gr.Info(
+                f'{repo_type} {repo_id} downloaded to folder: {content.get("download_path")}.'
+            )
+    except asyncio.CancelledError:
+        gr.Info("Download canceled.")
+    except Exception as e:
+        raise gr.Error(e)
+    finally:
+        await session.close()
+        download_task = None
+
+
+async def cancel_download():
+    global download_task
+    if download_task:
+        download_task.cancel()
+
+
 # Auto-attempt connection if admin key is provided
 init_model_text = None
 init_lora_text = None
@@ -683,6 +729,44 @@ with gr.Blocks(title="TabbyAPI Gradio Loader") as webui:
             interactive=True,
         )
 
+    with gr.Tab("HF Downloader"):
+        with gr.Row():
+            download_btn = gr.Button(value="Download", variant="primary")
+            cancel_download_btn = gr.Button(value="Cancel", variant="stop")
+
+        with gr.Row():
+            repo_id = gr.Textbox(
+                label="Repo ID:",
+                interactive=True,
+                info="Provided in the format <user/organization name>/<repo name>.",
+            )
+            revision = gr.Textbox(
+                label="Revision/Branch:",
+                interactive=True,
+                info="Name of the revision/branch of the repository to download.",
+            )
+
+        with gr.Row():
+            repo_type = gr.Dropdown(
+                choices=["Model", "Lora"],
+                value="Model",
+                label="Repo Type:",
+                interactive=True,
+                info="Specify whether the repository contains a model or lora.",
+            )
+            folder_name = gr.Textbox(
+                label="Folder Name:",
+                interactive=True,
+                info="Name to use for the local downloaded copy of the repository.",
+            )
+
+        with gr.Row():
+            token = gr.Textbox(
+                label="HF Access Token:",
+                type="password",
+                info="Provide HF access token to download from private/gated repositories.",
+            )
+
     # Define event listeners
     # Connection tab
     connect_btn.click(
@@ -795,6 +879,12 @@ with gr.Blocks(title="TabbyAPI Gradio Loader") as webui:
         inputs=[loras_drop, loras_table],
         outputs=[current_model, current_loras],
     )
+
+    # HF Downloader tab
+    download_btn.click(
+        fn=download, inputs=[repo_id, revision, repo_type, folder_name, token]
+    )
+    cancel_download_btn.click(fn=cancel_download)
 
 webui.launch(
     inbrowser=args.autolaunch,
