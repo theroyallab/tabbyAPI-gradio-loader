@@ -500,18 +500,24 @@ def unload_template():
         raise gr.Error(e)
 
 
-async def download(repo_id, revision, repo_type, folder_name, token):
+async def download(repo_id, revision, repo_type, folder_name, token, include, exclude):
     global download_task
-    if not revision:
-        revision = "main"
     if not folder_name:
         folder_name = repo_id.replace("/", "_")
+    include_parsed = ["*"]
+    if include:
+        include_parsed = [i.strip() for i in list(include.split(","))]
+    exclude_parsed = []
+    if exclude:
+        exclude_parsed = [i.strip() for i in list(include.split(","))]
     request = {
         "repo_id": repo_id,
         "revision": revision,
         "repo_type": repo_type.lower(),
         "folder_name": folder_name,
         "token": token,
+        "include": include_parsed,
+        "exclude": exclude_parsed,
     }
     try:
         async with aiohttp.ClientSession() as session:
@@ -771,38 +777,53 @@ with gr.Blocks(title="TabbyAPI Gradio Loader") as webui:
             download_btn = gr.Button(value="Download", variant="primary")
             cancel_download_btn = gr.Button(value="Cancel", variant="stop")
 
-        with gr.Row():
-            repo_id = gr.Textbox(
-                label="Repo ID:",
-                interactive=True,
-                info="Provided in the format <user/organization name>/<repo name>.",
-            )
-            revision = gr.Textbox(
-                label="Revision/Branch:",
-                interactive=True,
-                info="Name of the revision/branch of the repository to download.",
-            )
+        with gr.Group():
+            with gr.Row():
+                repo_id = gr.Textbox(
+                    label="Repo ID:",
+                    interactive=True,
+                    info="Provided in the format <user/organization name>/<repo name>.",
+                )
+                revision = gr.Textbox(
+                    label="Revision/Branch:",
+                    interactive=True,
+                    info="Name of the revision/branch of the repository to download.",
+                )
 
-        with gr.Row():
-            repo_type = gr.Dropdown(
-                choices=["Model", "Lora"],
-                value="Model",
-                label="Repo Type:",
-                interactive=True,
-                info="Specify whether the repository contains a model or lora.",
-            )
-            folder_name = gr.Textbox(
-                label="Folder Name:",
-                interactive=True,
-                info="Name to use for the local downloaded copy of the repository.",
-            )
+            with gr.Row():
+                repo_type = gr.Dropdown(
+                    choices=["Model", "Lora"],
+                    value="Model",
+                    label="Repo Type:",
+                    interactive=True,
+                    info="Specify whether the repository contains a model or lora.",
+                )
+                folder_name = gr.Textbox(
+                    label="Folder Name:",
+                    interactive=True,
+                    info="Name to use for the local downloaded copy of the repository.",
+                )
 
-        with gr.Row():
-            token = gr.Textbox(
-                label="HF Access Token:",
-                type="password",
-                info="Provide HF access token to download from private/gated repositories.",
-            )
+            with gr.Row():
+                include = gr.Textbox(
+                    placeholder="adapter_config.json, adapter_model.bin",
+                    label="Include Patterns:",
+                    interactive=True,
+                    info="Comma-separated list of file patterns to download from repository (default all).",
+                )
+                exclude = gr.Textbox(
+                    placeholder="*.bin, *.pth",
+                    label="Exclude Patterns:",
+                    interactive=True,
+                    info="Comma-separated list of file patterns to exclude from download.",
+                )
+
+            with gr.Row():
+                token = gr.Textbox(
+                    label="HF Access Token:",
+                    type="password",
+                    info="Provide HF access token to download from private/gated repositories.",
+                )
 
     # Define event listeners
     # Connection tab
@@ -921,7 +942,7 @@ with gr.Blocks(title="TabbyAPI Gradio Loader") as webui:
     # HF Downloader tab
     download_btn.click(
         fn=download,
-        inputs=[repo_id, revision, repo_type, folder_name, token],
+        inputs=[repo_id, revision, repo_type, folder_name, token, include, exclude],
         concurrency_limit=1,
     )
     cancel_download_btn.click(fn=cancel_download)
