@@ -16,6 +16,7 @@ models = []
 draft_models = []
 loras = []
 templates = []
+overrides = []
 
 model_load_task = None
 model_load_state = False
@@ -176,6 +177,7 @@ def connect(api_url, admin_key, silent=False):
     global draft_models
     global loras
     global templates
+    global overrides
 
     if not args.noauth:
         try:
@@ -207,6 +209,10 @@ def connect(api_url, admin_key, silent=False):
             url=api_url + "/v1/template/list", headers={"X-api-key": admin_key}
         )
         t.raise_for_status()
+        so = requests.get(
+            url=api_url + "/v1/sampling/override/list", headers={"X-api-key": admin_key}
+        )
+        so.raise_for_status()
     except Exception as e:
         raise gr.Error(e)
 
@@ -233,6 +239,11 @@ def connect(api_url, admin_key, silent=False):
         templates.append(template)
     templates.sort(key=str.lower)
 
+    overrides = []
+    for override in so.json().get("presets"):
+        overrides.append(override)
+    overrides.sort(key=str.lower)
+
     if not silent:
         gr.Info("TabbyAPI connected.")
         return (
@@ -243,6 +254,7 @@ def connect(api_url, admin_key, silent=False):
             get_draft_model_list(),
             get_lora_list(),
             get_template_list(),
+            get_override_list(),
             get_current_model(),
             get_current_loras(),
         )
@@ -262,6 +274,10 @@ def get_lora_list():
 
 def get_template_list():
     return gr.Dropdown(choices=[""] + templates, value=None)
+
+
+def get_override_list():
+    return gr.Dropdown(choices=[""] + overrides, value=None)
 
 
 def get_current_model():
@@ -495,6 +511,33 @@ def unload_template():
         )
         r.raise_for_status()
         gr.Info("Prompt template unloaded.")
+        return
+    except Exception as e:
+        raise gr.Error(e)
+
+
+def load_override(sampler_override):
+    try:
+        r = requests.post(
+            url=conn_url + "/v1/sampling/override/switch",
+            headers={"X-admin-key": conn_key},
+            json={"preset": sampler_override},
+        )
+        r.raise_for_status()
+        gr.Info(f"Sampler override switched to {sampler_override}.")
+        return
+    except Exception as e:
+        raise gr.Error(e)
+
+
+def unload_override():
+    try:
+        r = requests.post(
+            url=conn_url + "/v1/sampling/override/unload",
+            headers={"X-admin-key": conn_key},
+        )
+        r.raise_for_status()
+        gr.Info("Sampler override unloaded.")
         return
     except Exception as e:
         raise gr.Error(e)
@@ -752,6 +795,18 @@ with gr.Blocks(title="TabbyAPI Gradio Loader") as webui:
                 load_template_btn = gr.Button(value="Load Template", variant="primary")
                 unload_template_btn = gr.Button(value="Unload Template", variant="stop")
 
+        with gr.Accordion(open=False, label="Sampler Overrides"):
+            sampler_override = gr.Dropdown(
+                choices=[""] + overrides,
+                value="",
+                label="Select Sampler Overrides:",
+                interactive=True,
+                info="Select a sampler override preset to load.",
+            )
+            with gr.Row():
+                load_override_btn = gr.Button(value="Load Override", variant="primary")
+                unload_override_btn = gr.Button(value="Unload Override", variant="stop")
+
     with gr.Tab("Load Loras"):
         with gr.Row():
             load_loras_btn = gr.Button(value="Load Loras", variant="primary")
@@ -838,6 +893,7 @@ with gr.Blocks(title="TabbyAPI Gradio Loader") as webui:
             draft_models_drop,
             loras_drop,
             prompt_template,
+            sampler_override,
             current_model,
             current_loras,
         ],
@@ -929,6 +985,8 @@ with gr.Blocks(title="TabbyAPI Gradio Loader") as webui:
     )
     load_template_btn.click(fn=load_template, inputs=prompt_template)
     unload_template_btn.click(fn=unload_template)
+    load_override_btn.click(fn=load_override, inputs=sampler_override)
+    unload_override_btn.click(fn=unload_override)
 
     # Loras tab
     loras_drop.change(update_loras_table, inputs=loras_drop, outputs=loras_table)
