@@ -81,6 +81,7 @@ def read_preset(name):
         gr.Dropdown(value=data.get("name")),
         gr.Number(value=data.get("max_seq_len")),
         gr.Number(value=data.get("override_base_seq_len")),
+        gr.Number(value=data.get("cache_size")),
         gr.Checkbox(value=data.get("gpu_split_auto")),
         gr.Textbox(value=data.get("gpu_split")),
         gr.Number(value=data.get("rope_scale")),
@@ -89,7 +90,6 @@ def read_preset(name):
         gr.Radio(value=data.get("cache_mode")),
         gr.Dropdown(value=data.get("prompt_template")),
         gr.Number(value=data.get("num_experts_per_token")),
-        gr.Checkbox(value=data.get("use_cfg")),
         gr.Dropdown(value=data.get("draft_model_name")),
         gr.Number(value=data.get("draft_rope_scale")),
         gr.Number(value=data.get("draft_rope_alpha")),
@@ -113,6 +113,7 @@ def write_preset(
     model_name,
     max_seq_len,
     override_base_seq_len,
+    cache_size,
     gpu_split_auto,
     gpu_split,
     model_rope_scale,
@@ -121,7 +122,6 @@ def write_preset(
     cache_mode,
     prompt_template,
     num_experts_per_token,
-    use_cfg,
     draft_model_name,
     draft_rope_scale,
     draft_rope_alpha,
@@ -136,6 +136,7 @@ def write_preset(
         "name": model_name,
         "max_seq_len": max_seq_len,
         "override_base_seq_len": override_base_seq_len,
+        "cache_size": cache_size,
         "gpu_split_auto": gpu_split_auto,
         "gpu_split": gpu_split,
         "rope_scale": model_rope_scale,
@@ -144,7 +145,6 @@ def write_preset(
         "cache_mode": cache_mode,
         "prompt_template": prompt_template,
         "num_experts_per_token": num_experts_per_token,
-        "use_cfg": use_cfg,
         "draft_model_name": draft_model_name,
         "draft_rope_scale": draft_rope_scale,
         "draft_rope_alpha": draft_rope_alpha,
@@ -288,7 +288,7 @@ def get_current_model():
         return gr.Textbox(value=None)
     params = model_card.get("parameters")
     draft_model_card = params.get("draft")
-    model = f'{model_card.get("id")} (context: {params.get("max_seq_len")}, rope scale: {params.get("rope_scale")}, rope alpha: {params.get("rope_alpha")}, cfg: {params.get("use_cfg")})'
+    model = f'{model_card.get("id")} (context: {params.get("max_seq_len")}, cache size: {params.get("cache_size")}, rope scale: {params.get("rope_scale")}, rope alpha: {params.get("rope_alpha")})'
 
     if draft_model_card:
         draft_params = draft_model_card.get("parameters")
@@ -327,6 +327,7 @@ async def load_model(
     model_name,
     max_seq_len,
     override_base_seq_len,
+    cache_size,
     gpu_split_auto,
     gpu_split,
     model_rope_scale,
@@ -335,7 +336,6 @@ async def load_model(
     cache_mode,
     prompt_template,
     num_experts_per_token,
-    use_cfg,
     draft_model_name,
     draft_rope_scale,
     draft_rope_alpha,
@@ -374,6 +374,7 @@ async def load_model(
         "name": model_name,
         "max_seq_len": max_seq_len,
         "override_base_seq_len": override_base_seq_len,
+        "cache_size": cache_size,
         "gpu_split_auto": gpu_split_auto,
         "gpu_split": gpu_split_parsed,
         "rope_scale": model_rope_scale,
@@ -382,7 +383,6 @@ async def load_model(
         "cache_mode": cache_mode,
         "prompt_template": prompt_template,
         "num_experts_per_token": num_experts_per_token,
-        "use_cfg": use_cfg,
         "fasttensors": fasttensors,
         "autosplit_reserve": autosplit_reserve_parsed,
         "chunk_size": chunk_size,
@@ -677,6 +677,14 @@ with gr.Blocks(title="TabbyAPI Gradio Loader") as webui:
                     interactive=True,
                     info="Override the model's 'base' sequence length in config.json. Only relevant when using automatic rope alpha. Leave blank if unsure.",
                 )
+                cache_size = gr.Number(
+                    value=lambda: None,
+                    label="Cache Size:",
+                    precision=0,
+                    minimum=1,
+                    interactive=True,
+                    info="Size of the prompt cache to allocate (in number of tokens, multiple of 256). Defaults to max sequence length if left blank.",
+                )
 
             with gr.Row():
                 model_rope_scale = gr.Number(
@@ -737,12 +745,6 @@ with gr.Blocks(title="TabbyAPI Gradio Loader") as webui:
                     label="GPU Split Auto",
                     interactive=True,
                     info="Automatically determine how to split model layers between multiple GPUs.",
-                )
-                use_cfg = gr.Checkbox(
-                    value=False,
-                    label="Use CFG",
-                    interactive=True,
-                    info="Enable classifier-free guidance. This requires additional VRAM for the negative prompt cache.",
                 )
                 fasttensors = gr.Checkbox(
                     value=False,
@@ -907,6 +909,7 @@ with gr.Blocks(title="TabbyAPI Gradio Loader") as webui:
             models_drop,
             max_seq_len,
             override_base_seq_len,
+            cache_size,
             gpu_split_auto,
             gpu_split,
             model_rope_scale,
@@ -915,7 +918,6 @@ with gr.Blocks(title="TabbyAPI Gradio Loader") as webui:
             cache_mode,
             prompt_template,
             num_experts_per_token,
-            use_cfg,
             draft_models_drop,
             draft_rope_scale,
             draft_rope_alpha,
@@ -932,6 +934,7 @@ with gr.Blocks(title="TabbyAPI Gradio Loader") as webui:
             models_drop,
             max_seq_len,
             override_base_seq_len,
+            cache_size,
             gpu_split_auto,
             gpu_split,
             model_rope_scale,
@@ -940,7 +943,6 @@ with gr.Blocks(title="TabbyAPI Gradio Loader") as webui:
             cache_mode,
             prompt_template,
             num_experts_per_token,
-            use_cfg,
             draft_models_drop,
             draft_rope_scale,
             draft_rope_alpha,
@@ -964,6 +966,7 @@ with gr.Blocks(title="TabbyAPI Gradio Loader") as webui:
             models_drop,
             max_seq_len,
             override_base_seq_len,
+            cache_size,
             gpu_split_auto,
             gpu_split,
             model_rope_scale,
@@ -972,7 +975,6 @@ with gr.Blocks(title="TabbyAPI Gradio Loader") as webui:
             cache_mode,
             prompt_template,
             num_experts_per_token,
-            use_cfg,
             draft_models_drop,
             draft_rope_scale,
             draft_rope_alpha,
