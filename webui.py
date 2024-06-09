@@ -93,6 +93,7 @@ def read_preset(name):
         gr.Dropdown(value=data.get("draft_model_name")),
         gr.Number(value=data.get("draft_rope_scale")),
         gr.Number(value=data.get("draft_rope_alpha")),
+        gr.Radio(value=data.get("draft_cache_mode")),
         gr.Checkbox(value=data.get("fasttensors")),
         gr.Textbox(value=data.get("autosplit_reserve")),
         gr.Number(value=data.get("chunk_size")),
@@ -125,6 +126,7 @@ def write_preset(
     draft_model_name,
     draft_rope_scale,
     draft_rope_alpha,
+    draft_cache_mode,
     fasttensors,
     autosplit_reserve,
     chunk_size,
@@ -148,6 +150,7 @@ def write_preset(
         "draft_model_name": draft_model_name,
         "draft_rope_scale": draft_rope_scale,
         "draft_rope_alpha": draft_rope_alpha,
+        "draft_cache_mode": draft_cache_mode,
         "fasttensors": fasttensors,
         "autosplit_reserve": autosplit_reserve,
         "chunk_size": chunk_size,
@@ -339,6 +342,7 @@ async def load_model(
     draft_model_name,
     draft_rope_scale,
     draft_rope_alpha,
+    draft_cache_mode,
     fasttensors,
     autosplit_reserve,
     chunk_size,
@@ -367,6 +371,7 @@ async def load_model(
             "draft_model_name": draft_model_name,
             "draft_rope_scale": draft_rope_scale,
             "draft_rope_alpha": draft_rope_alpha,
+            "draft_cache_mode": draft_cache_mode,
         }
     else:
         draft_request = None
@@ -724,15 +729,22 @@ with gr.Blocks(title="TabbyAPI Gradio Loader") as webui:
                     interactive=True,
                     info="Factor used for NTK-aware rope scaling. Leave blank for automatic scaling calculated based on your configured max_seq_len and the model's base context length.",
                 )
+                draft_cache_mode = gr.Radio(
+                    value="FP16",
+                    label="Draft Cache Mode:",
+                    choices=["Q4", "Q6", "Q8", "FP16"],
+                    interactive=True,
+                    info="Q4/Q6/Q8 cache sacrifice some precision to save VRAM compared to full FP16 precision.",
+                )
 
         with gr.Group():
             with gr.Row():
                 cache_mode = gr.Radio(
                     value="FP16",
                     label="Cache Mode:",
-                    choices=["Q4", "FP8", "FP16"],
+                    choices=["Q4", "Q6", "Q8", "FP16"],
                     interactive=True,
-                    info="Q4 and FP8 cache sacrifice some precision to save VRAM compared to full FP16 precision.",
+                    info="Q4/Q6/Q8 cache sacrifice some precision to save VRAM compared to full FP16 precision.",
                 )
                 no_flash_attention = gr.Checkbox(
                     value=False,
@@ -921,6 +933,7 @@ with gr.Blocks(title="TabbyAPI Gradio Loader") as webui:
             draft_models_drop,
             draft_rope_scale,
             draft_rope_alpha,
+            draft_cache_mode,
             fasttensors,
             autosplit_reserve,
             chunk_size,
@@ -946,6 +959,7 @@ with gr.Blocks(title="TabbyAPI Gradio Loader") as webui:
             draft_models_drop,
             draft_rope_scale,
             draft_rope_alpha,
+            draft_cache_mode,
             fasttensors,
             autosplit_reserve,
             chunk_size,
@@ -978,6 +992,7 @@ with gr.Blocks(title="TabbyAPI Gradio Loader") as webui:
             draft_models_drop,
             draft_rope_scale,
             draft_rope_alpha,
+            draft_cache_mode,
             fasttensors,
             autosplit_reserve,
             chunk_size,
