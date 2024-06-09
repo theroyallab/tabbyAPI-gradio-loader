@@ -162,6 +162,3 @@ cython_debug/
 # Presets folder
 presets/*
 !presets/place_your_presets_here.txt
-!presets/llama-2.json
-!presets/llama-2-8k-ntk.json
-!presets/mixtral.json
