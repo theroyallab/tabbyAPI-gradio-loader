@@ -34,12 +34,6 @@ parser.add_argument(
     "-l", "--listen", action="store_true", help="Share WebUI link via LAN"
 )
 parser.add_argument(
-    "-n",
-    "--noauth",
-    action="store_true",
-    help="Specify TabbyAPI endpoint that has no authorization",
-)
-parser.add_argument(
     "-s",
     "--share",
     action="store_true",
@@ -94,6 +88,7 @@ def read_preset(name):
         gr.Number(value=data.get("draft_rope_alpha")),
         gr.Radio(value=data.get("draft_cache_mode")),
         gr.Checkbox(value=data.get("fasttensors")),
+        gr.Checkbox(value=data.get("tensor_parallel")),
         gr.Textbox(value=data.get("autosplit_reserve")),
         gr.Number(value=data.get("chunk_size")),
     )
@@ -126,6 +121,7 @@ def write_preset(
     draft_rope_alpha,
     draft_cache_mode,
     fasttensors,
+    tensor_parallel,
     autosplit_reserve,
     chunk_size,
 ):
@@ -149,6 +145,7 @@ def write_preset(
         "draft_rope_alpha": draft_rope_alpha,
         "draft_cache_mode": draft_cache_mode,
         "fasttensors": fasttensors,
+        "tensor_parallel": tensor_parallel,
         "autosplit_reserve": autosplit_reserve,
         "chunk_size": chunk_size,
     }
@@ -179,18 +176,17 @@ def connect(api_url, admin_key, silent=False):
     global templates
     global overrides
 
-    if not args.noauth:
-        try:
-            a = requests.get(
-                url=api_url + "/v1/auth/permission", headers={"X-api-key": admin_key}
+    try:
+        a = requests.get(
+            url=api_url + "/v1/auth/permission", headers={"X-api-key": admin_key}
+        )
+        a.raise_for_status()
+        if a.json().get("permission") != "admin":
+            raise ValueError(
+                "The provided authentication key must be an admin key to access the loader's functions."
             )
-            a.raise_for_status()
-            if a.json().get("permission") != "admin":
-                raise ValueError(
-                    "The provided authentication key must be an admin key to access the loader's functions."
-                )
-        except Exception as e:
-            raise gr.Error(e)
+    except Exception as e:
+        raise gr.Error(e)
 
     try:
         m = requests.get(
@@ -340,6 +336,7 @@ async def load_model(
     draft_rope_alpha,
     draft_cache_mode,
     fasttensors,
+    tensor_parallel,
     autosplit_reserve,
     chunk_size,
 ):
@@ -384,6 +381,7 @@ async def load_model(
         "prompt_template": prompt_template,
         "num_experts_per_token": num_experts_per_token,
         "fasttensors": fasttensors,
+        "tensor_parallel": tensor_parallel,
         "autosplit_reserve": autosplit_reserve_parsed,
         "chunk_size": chunk_size,
         "draft": draft_request,
@@ -753,6 +751,12 @@ with gr.Blocks(title="TabbyAPI Gradio Loader") as webui:
                     interactive=True,
                     info="Enable to possibly increase model loading speeds on some systems.",
                 )
+                tensor_parallel = gr.Checkbox(
+                    value=False,
+                    label="Tensor Parallel",
+                    interactive=True,
+                    info="Enable to enable tensor parallelism on multi-GPU setups, which will improve generation speed in most settings.",
+                )
 
             gpu_split = gr.Textbox(
                 label="GPU Split:",
@@ -923,6 +927,7 @@ with gr.Blocks(title="TabbyAPI Gradio Loader") as webui:
             draft_rope_alpha,
             draft_cache_mode,
             fasttensors,
+            tensor_parallel,
             autosplit_reserve,
             chunk_size,
         ],
@@ -948,6 +953,7 @@ with gr.Blocks(title="TabbyAPI Gradio Loader") as webui:
             draft_rope_alpha,
             draft_cache_mode,
             fasttensors,
+            tensor_parallel,
             autosplit_reserve,
             chunk_size,
         ],
@@ -980,6 +986,7 @@ with gr.Blocks(title="TabbyAPI Gradio Loader") as webui:
             draft_rope_alpha,
             draft_cache_mode,
             fasttensors,
+            tensor_parallel,
             autosplit_reserve,
             chunk_size,
         ],
