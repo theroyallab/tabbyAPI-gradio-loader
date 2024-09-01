@@ -80,12 +80,14 @@ def read_preset(name):
         gr.Textbox(value=data.get("gpu_split")),
         gr.Number(value=data.get("rope_scale")),
         gr.Number(value=data.get("rope_alpha")),
+        gr.Checkbox(value=data.get("model_rope_alpha_auto")),
         gr.Radio(value=data.get("cache_mode")),
         gr.Dropdown(value=data.get("prompt_template")),
         gr.Number(value=data.get("num_experts_per_token")),
         gr.Dropdown(value=data.get("draft_model_name")),
         gr.Number(value=data.get("draft_rope_scale")),
         gr.Number(value=data.get("draft_rope_alpha")),
+        gr.Checkbox(value=data.get("draft_rope_alpha_auto")),
         gr.Radio(value=data.get("draft_cache_mode")),
         gr.Checkbox(value=data.get("fasttensors")),
         gr.Checkbox(value=data.get("tensor_parallel")),
@@ -113,12 +115,14 @@ def write_preset(
     gpu_split,
     model_rope_scale,
     model_rope_alpha,
+    model_rope_alpha_auto,
     cache_mode,
     prompt_template,
     num_experts_per_token,
     draft_model_name,
     draft_rope_scale,
     draft_rope_alpha,
+    draft_rope_alpha_auto,
     draft_cache_mode,
     fasttensors,
     tensor_parallel,
@@ -137,12 +141,14 @@ def write_preset(
         "gpu_split": gpu_split,
         "rope_scale": model_rope_scale,
         "rope_alpha": model_rope_alpha,
+        "model_rope_alpha_auto": model_rope_alpha_auto,
         "cache_mode": cache_mode,
         "prompt_template": prompt_template,
         "num_experts_per_token": num_experts_per_token,
         "draft_model_name": draft_model_name,
         "draft_rope_scale": draft_rope_scale,
         "draft_rope_alpha": draft_rope_alpha,
+        "draft_rope_alpha_auto": draft_rope_alpha_auto,
         "draft_cache_mode": draft_cache_mode,
         "fasttensors": fasttensors,
         "tensor_parallel": tensor_parallel,
@@ -328,12 +334,14 @@ async def load_model(
     gpu_split,
     model_rope_scale,
     model_rope_alpha,
+    model_rope_alpha_auto,
     cache_mode,
     prompt_template,
     num_experts_per_token,
     draft_model_name,
     draft_rope_scale,
     draft_rope_alpha,
+    draft_rope_alpha_auto,
     draft_cache_mode,
     fasttensors,
     tensor_parallel,
@@ -363,7 +371,7 @@ async def load_model(
         draft_request = {
             "draft_model_name": draft_model_name,
             "draft_rope_scale": draft_rope_scale,
-            "draft_rope_alpha": draft_rope_alpha,
+            "draft_rope_alpha": "auto" if draft_rope_alpha_auto else draft_rope_alpha,
             "draft_cache_mode": draft_cache_mode,
         }
     else:
@@ -376,7 +384,7 @@ async def load_model(
         "gpu_split_auto": gpu_split_auto,
         "gpu_split": gpu_split_parsed,
         "rope_scale": model_rope_scale,
-        "rope_alpha": model_rope_alpha,
+        "rope_alpha": "auto" if model_rope_alpha_auto else model_rope_alpha,
         "cache_mode": cache_mode,
         "prompt_template": prompt_template,
         "num_experts_per_token": num_experts_per_token,
@@ -479,6 +487,20 @@ def unload_loras():
         return get_current_model(), get_current_loras()
     except Exception as e:
         raise gr.Error(e)
+
+
+def toggle_model_rope_alpha_auto(model_rope_alpha_auto):
+    if model_rope_alpha_auto:
+        return gr.Number(interactive=False)
+    else:
+        return gr.Number(interactive=True)
+
+
+def toggle_draft_rope_alpha_auto(draft_rope_alpha_auto):
+    if draft_rope_alpha_auto:
+        return gr.Number(interactive=False)
+    else:
+        return gr.Number(interactive=True)
 
 
 def toggle_gpu_split(gpu_split_auto):
@@ -690,14 +712,20 @@ with gr.Blocks(title="TabbyAPI Gradio Loader") as webui:
                     label="Rope Scale:",
                     minimum=1,
                     interactive=True,
-                    info="AKA compress_pos_emb or linear rope, used for models trained with modified positional embeddings, such as SuperHoT. If left blank, automatically reads from model config.",
+                    info="Used for models trained with modified linear positional embeddings. If left blank, automatically reads from model config.",
                 )
                 model_rope_alpha = gr.Number(
                     value=lambda: None,
                     label="Rope Alpha:",
                     minimum=1,
+                    interactive=False,
+                    info="Factor used for NTK-aware rope scaling. Ignored if automatic calculation is selected.",
+                )
+                model_rope_alpha_auto = gr.Checkbox(
+                    value=True,
+                    label="Automatic Rope Alpha",
                     interactive=True,
-                    info="Factor used for NTK-aware rope scaling. Leave blank for automatic calculation based on your configured max_seq_len and the model's base context length.",
+                    info="Enable automatic calculation based on your configured max_seq_len and the model's base context length.",
                 )
 
         with gr.Accordion(open=False, label="Speculative Decoding"):
@@ -713,14 +741,20 @@ with gr.Blocks(title="TabbyAPI Gradio Loader") as webui:
                     label="Draft Rope Scale:",
                     minimum=1,
                     interactive=True,
-                    info="AKA compress_pos_emb or linear rope, used for models trained with modified positional embeddings, such as SuperHoT. If left blank, automatically reads from model config.",
+                    info="Used for models trained with modified linear positional embeddings. If left blank, automatically reads from model config.",
                 )
                 draft_rope_alpha = gr.Number(
                     value=lambda: None,
                     label="Draft Rope Alpha:",
                     minimum=1,
-                    interactive=True,
+                    interactive=False,
                     info="Factor used for NTK-aware rope scaling. Leave blank for automatic scaling calculated based on your configured max_seq_len and the model's base context length.",
+                )
+                draft_rope_alpha_auto = gr.Checkbox(
+                    value=True,
+                    label="Automatic Rope Alpha",
+                    interactive=True,
+                    info="Enable automatic calculation based on your configured max_seq_len and the model's base context length.",
                 )
                 draft_cache_mode = gr.Radio(
                     value="FP16",
@@ -919,12 +953,14 @@ with gr.Blocks(title="TabbyAPI Gradio Loader") as webui:
             gpu_split,
             model_rope_scale,
             model_rope_alpha,
+            model_rope_alpha_auto,
             cache_mode,
             prompt_template,
             num_experts_per_token,
             draft_models_drop,
             draft_rope_scale,
             draft_rope_alpha,
+            draft_rope_alpha_auto,
             draft_cache_mode,
             fasttensors,
             tensor_parallel,
@@ -945,12 +981,14 @@ with gr.Blocks(title="TabbyAPI Gradio Loader") as webui:
             gpu_split,
             model_rope_scale,
             model_rope_alpha,
+            model_rope_alpha_auto,
             cache_mode,
             prompt_template,
             num_experts_per_token,
             draft_models_drop,
             draft_rope_scale,
             draft_rope_alpha,
+            draft_rope_alpha_auto,
             draft_cache_mode,
             fasttensors,
             tensor_parallel,
@@ -961,6 +999,16 @@ with gr.Blocks(title="TabbyAPI Gradio Loader") as webui:
     )
     refresh_preset_btn.click(fn=get_preset_list, outputs=load_preset)
 
+    model_rope_alpha_auto.change(
+        fn=toggle_model_rope_alpha_auto,
+        inputs=model_rope_alpha_auto,
+        outputs=model_rope_alpha,
+    )
+    draft_rope_alpha_auto.change(
+        fn=toggle_draft_rope_alpha_auto,
+        inputs=draft_rope_alpha_auto,
+        outputs=draft_rope_alpha,
+    )
     gpu_split_auto.change(
         fn=toggle_gpu_split,
         inputs=gpu_split_auto,
@@ -978,12 +1026,14 @@ with gr.Blocks(title="TabbyAPI Gradio Loader") as webui:
             gpu_split,
             model_rope_scale,
             model_rope_alpha,
+            model_rope_alpha_auto,
             cache_mode,
             prompt_template,
             num_experts_per_token,
             draft_models_drop,
             draft_rope_scale,
             draft_rope_alpha,
+            draft_rope_alpha_auto,
             draft_cache_mode,
             fasttensors,
             tensor_parallel,
