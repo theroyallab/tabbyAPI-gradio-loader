@@ -1,2 +1,2 @@
 aiohttp
-gradio==4.42.0
+gradio==5.1.0
