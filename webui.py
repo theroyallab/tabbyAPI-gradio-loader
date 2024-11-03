@@ -74,7 +74,6 @@ def read_preset(name):
     return (
         gr.Dropdown(value=data.get("name")),
         gr.Number(value=data.get("max_seq_len")),
-        gr.Number(value=data.get("override_base_seq_len")),
         gr.Number(value=data.get("cache_size")),
         gr.Checkbox(value=data.get("gpu_split_auto")),
         gr.Textbox(value=data.get("gpu_split")),
@@ -108,7 +107,6 @@ def write_preset(
     name,
     model_name,
     max_seq_len,
-    override_base_seq_len,
     cache_size,
     gpu_split_auto,
     gpu_split,
@@ -133,7 +131,6 @@ def write_preset(
     data = {
         "name": model_name,
         "max_seq_len": max_seq_len,
-        "override_base_seq_len": override_base_seq_len,
         "cache_size": cache_size,
         "gpu_split_auto": gpu_split_auto,
         "gpu_split": gpu_split,
@@ -325,7 +322,6 @@ def update_loras_table(loras):
 async def load_model(
     model_name,
     max_seq_len,
-    override_base_seq_len,
     cache_size,
     gpu_split_auto,
     gpu_split,
@@ -375,7 +371,6 @@ async def load_model(
     request = {
         "name": model_name,
         "max_seq_len": max_seq_len,
-        "override_base_seq_len": override_base_seq_len,
         "cache_size": cache_size,
         "gpu_split_auto": gpu_split_auto,
         "gpu_split": gpu_split_parsed,
@@ -684,14 +679,6 @@ with gr.Blocks(title="TabbyAPI Gradio Loader") as webui:
                     interactive=True,
                     info="Configured context length to load the model with. If left blank, automatically reads from model config.",
                 )
-                override_base_seq_len = gr.Number(
-                    value=lambda: None,
-                    label="Override Base Sequence Length:",
-                    precision=0,
-                    minimum=1,
-                    interactive=True,
-                    info="Override the model's 'base' sequence length in config.json. Only relevant when using automatic rope alpha. Leave blank if unsure.",
-                )
                 cache_size = gr.Number(
                     value=lambda: None,
                     label="Cache Size:",
@@ -936,7 +923,6 @@ with gr.Blocks(title="TabbyAPI Gradio Loader") as webui:
         outputs=[
             models_drop,
             max_seq_len,
-            override_base_seq_len,
             cache_size,
             gpu_split_auto,
             gpu_split,
@@ -963,7 +949,6 @@ with gr.Blocks(title="TabbyAPI Gradio Loader") as webui:
             save_preset,
             models_drop,
             max_seq_len,
-            override_base_seq_len,
             cache_size,
             gpu_split_auto,
             gpu_split,
@@ -1007,7 +992,6 @@ with gr.Blocks(title="TabbyAPI Gradio Loader") as webui:
         inputs=[
             models_drop,
             max_seq_len,
-            override_base_seq_len,
             cache_size,
             gpu_split_auto,
             gpu_split,
