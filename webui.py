@@ -89,6 +89,7 @@ def read_preset(name):
         gr.Checkbox(value=data.get("draft_rope_alpha_auto")),
         gr.Radio(value=data.get("draft_cache_mode")),
         gr.Checkbox(value=data.get("tensor_parallel")),
+        gr.Checkbox(value=data.get("vision")),
         gr.Textbox(value=data.get("autosplit_reserve")),
         gr.Number(value=data.get("chunk_size")),
     )
@@ -122,6 +123,7 @@ def write_preset(
     draft_rope_alpha_auto,
     draft_cache_mode,
     tensor_parallel,
+    vision,
     autosplit_reserve,
     chunk_size,
 ):
@@ -146,6 +148,7 @@ def write_preset(
         "draft_rope_alpha_auto": draft_rope_alpha_auto,
         "draft_cache_mode": draft_cache_mode,
         "tensor_parallel": tensor_parallel,
+        "vision": vision,
         "autosplit_reserve": autosplit_reserve,
         "chunk_size": chunk_size,
     }
@@ -337,6 +340,7 @@ async def load_model(
     draft_rope_alpha_auto,
     draft_cache_mode,
     tensor_parallel,
+    vision,
     autosplit_reserve,
     chunk_size,
 ):
@@ -380,6 +384,7 @@ async def load_model(
         "prompt_template": prompt_template,
         "num_experts_per_token": num_experts_per_token,
         "tensor_parallel": tensor_parallel,
+        "vision": vision,
         "autosplit_reserve": autosplit_reserve_parsed,
         "chunk_size": chunk_size,
         "draft": draft_request,
@@ -767,6 +772,12 @@ with gr.Blocks(title="TabbyAPI Gradio Loader") as webui:
                     interactive=True,
                     info="Enable to enable tensor parallelism on multi-GPU setups, which will improve generation speed in most settings.",
                 )
+                vision = gr.Checkbox(
+                    value=False,
+                    label="Vision",
+                    interactive=True,
+                    info="Enables vision support if the model supports it.",
+                )
 
             gpu_split = gr.Textbox(
                 label="GPU Split:",
@@ -938,6 +949,7 @@ with gr.Blocks(title="TabbyAPI Gradio Loader") as webui:
             draft_rope_alpha_auto,
             draft_cache_mode,
             tensor_parallel,
+            vision,
             autosplit_reserve,
             chunk_size,
         ],
@@ -964,6 +976,7 @@ with gr.Blocks(title="TabbyAPI Gradio Loader") as webui:
             draft_rope_alpha_auto,
             draft_cache_mode,
             tensor_parallel,
+            vision,
             autosplit_reserve,
             chunk_size,
         ],
@@ -1007,6 +1020,7 @@ with gr.Blocks(title="TabbyAPI Gradio Loader") as webui:
             draft_rope_alpha_auto,
             draft_cache_mode,
             tensor_parallel,
+            vision,
             autosplit_reserve,
             chunk_size,
         ],
